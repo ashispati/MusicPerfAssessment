@@ -17,28 +17,44 @@ YEAR = ['2013', '2014', '2015']
 PATH_FBA_DATA = '/Users/Ashis/Documents/Github/FBA2013data/'
 PATH_FBA_ANNO = '/Users/Ashis/Documents/Github/FBA2013/'
 
-utils = DataUtils()
+utils = DataUtils(PATH_FBA_ANNO, PATH_FBA_DATA, BAND, INSTRUMENT)
 
 ## scan student ids based on the input params
 student_ids = {}
 for year in YEAR:
-    student_ids[year] = utils.scan_student_ids(PATH_FBA_ANNO, BAND, INSTRUMENT, year)
-
-## extract segment information from the annotations
-segment_data = {}
-for year in YEAR:
-    segment_data[year] = utils.get_segment_info(PATH_FBA_ANNO, student_ids[year], BAND, year, SEGMENT)
+    student_ids[year] = utils.scan_student_ids(year)
 
 ## extract pYin pitch contours for all files 
 pitch_contour_data = {}
 for year in YEAR:
-    pitch_contour_data[year] = utils.get_pyin_pitch_contour(PATH_FBA_DATA, student_ids[year], BAND, year, segment_data[year])
+    pitch_contour_data[year] = utils.get_pitch_contours_segment(year, SEGMENT, student_ids[year])
 
 ## extract ground truth ratings for all files
-
+ground_truth = {}
+for year in YEAR:
+    ground_truth[year] = utils.get_perf_rating_segment(year, SEGMENT, student_ids[year])
 
 
 ## put everything together and save as .dll file
+perf_assessment_data = []
+for year in YEAR:
+	for student_idx in range(len(student_ids[year])):
+		assessment_data = {}
+		assessment_data['year'] = year
+		assessment_data['band'] = BAND
+		assessment_data['instrumemt'] = INSTRUMENT
+		assessment_data['student_id'] = student_ids[year][student_idx]
+		assessment_data['segment'] = SEGMENT
+		assessment_data['pitch_contour'] = pitch_contour_data[year][student_idx]
+		assessment_data['ratings'] = ground_truth[year][student_idx]
+		perf_assessment_data.append(assessment_data)
 
+file_name = BAND + '_' + INSTRUMENT[:4] + '_' + str(SEGMENT) + '_data' 
+if sys.version_info[0] < 3:
+	with open('../dat/' + file_name + '.dill', 'wb') as f:
+		dill.dump(perf_assessment_data, f)
+else:
+	with open('../dat/' + file_name + '_3.dill', 'wb') as f:
+		dill.dump(perf_assessment_data, f)
 
 
