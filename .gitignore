@@ -55,5 +55,6 @@ src/saved/
 ._*
 .Spotlight-V100
 .Trashes
+.vscode
 ehthumbs.db
 Thumbs.db
