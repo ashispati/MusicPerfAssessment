@@ -3,10 +3,13 @@ import torch
 import dill
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import numpy as np
 
 
 class PitchContourDataset(Dataset):
-    """Dataset class for pitch contour data"""
+    """Dataset class for pitch contour based music performance assessment data"""
     
     def __init__(self, data_path):
         """
@@ -14,15 +17,23 @@ class PitchContourDataset(Dataset):
         Args: 
             data_path:  full path to the file which contains the pitch contour data
         """
-        
+        self.perf_data = dill.load(open(data_path, 'rb'))
+        self.length = len(self.perf_data)
+
+        # perform a few pre-processing steps
+        for i in range(self.length):
+            # store the length of the pitch contours for use later
+            self.perf_data[i]['length'] = len(self.perf_data[i]['pitch_contour'])
+            # store the length of the pitch contours for use later
+            self.perf_data[i]['pitch_contour'] = self.normalize_pitch_contour(self.perf_data[i]['pitch_contour'])
 
     def __getitem__(self, idx):
         """ 
-        Returns a datapoint (interval and duration indices) and corresponding targets for a particular index
+        Returns a datapoint for a particular index
         Args:
             idx:        int, must range within [0, length of dataset)
         """
-        
+        return self.perf_data[idx] 
 
     def __len__(self):
         """
@@ -30,34 +41,27 @@ class PitchContourDataset(Dataset):
         """
         return self.length
     
-    
-
-class ZeroPad(object):
-    """
-    Adds stop tags to the datapoints in the 
-    """
-    def __init__(self, seq_length):
+    def plot_pitch_contour(self, idx):
         """
-        Initializes the ZeroPad class
+        Plots the pitch contour for visualization
+        """
+        pitch_contour = self.perf_data[idx]['pitch_contour']
+        plt.plot(pitch_contour)
+        plt.ylabel('pYin Pitch Contour (in Hz)')
+        plt.show()
+
+    def normalize_pitch_contour(self, pitch_contour):
+        """
+        Returns the normalized pitch contour after converting to floating point MIDI
         Args:
-            seq_length:     int, length of the final zero padded sequence
-        """
-        assert isinstance(seq_length, int)
-        self.seq_length = seq_length
-
-    def apply_pad(self, sample):
-        """
-        Pads the input 1-D tensor so that it become the same length as the seq_length member of the class
-        Args:
-            sample: 1-D long tensor
-        """
-        assert self.seq_length >= sample.size(0)
-        if self.seq_length == sample.size(0):
-            return sample
-        zero_pad = torch.zeros(self.seq_length - int(sample.size(0))).long()
-        zero_padded_sample = torch.cat((sample, zero_pad), 0)
-        return zero_padded_sample
-
+            pitch_contour:      np 1-D array, contains pitch in Hz
+        """    
+        # convert to MIDI first
+        a4 = 440.0
+        pitch_contour[pitch_contour != 0] = 69 + 12 * np.log2(pitch_contour[pitch_contour != 0]/ a4)
+        # normalize pitch
+        normalized_pitch = pitch_contour / 127.0
+        return normalized_pitch
 
 
 
