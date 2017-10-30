@@ -27,8 +27,8 @@ CUDA_AVAILABLE = torch.cuda.is_available()
 print('Running on GPU: ', CUDA_AVAILABLE)
 
 # initializa training parameters
-NUM_EPOCHS = 200
-NUM_DATA_POINTS = 350
+NUM_EPOCHS = 2000
+NUM_DATA_POINTS = 390
 NUM_BATCHES = 10
 BAND = 'middle'
 INSTRUMENT = 'Alto Saxophone'
@@ -53,7 +53,7 @@ testing_data = batched_data[8:10]
 ## initialize model
 perf_model = PitchContourAssessor()
 criterion = nn.MSELoss()
-LR_RATE = 0.001
+LR_RATE = 0.01
 perf_optimizer = optim.SGD(perf_model.parameters(), LR_RATE)
 print(perf_model)
 
@@ -234,4 +234,4 @@ except KeyboardInterrupt:
 
 # test on testing data 
 test_loss, test_r_sq = eval_model(perf_model, testing_data, METRIC)
-print('[%s %0.5f, %s %0.5f]'% ('Testing Loss: ', val_loss, ' R-sq: ', val_r_sq))
+print('[%s %0.5f, %s %0.5f]'% ('Testing Loss: ', test_loss, ' R-sq: ', test_r_sq))
