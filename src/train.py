@@ -17,22 +17,23 @@ from dataLoaders.PitchContourDataloader import PitchContourDataloader
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from tensorboard_logger import configure, log_value
+from sklearn import metrics
 
 # set manual random seed for reproducibility
 torch.manual_seed(1)
 
 # check is cuda is available and print result
 CUDA_AVAILABLE = torch.cuda.is_available()
-print(CUDA_AVAILABLE)
+print('Running on GPU: ', CUDA_AVAILABLE)
 
 # initializa training parameters
-NUM_EPOCHS = 50
-NUM_DATA_POINTS = 100
+NUM_EPOCHS = 200
+NUM_DATA_POINTS = 350
 NUM_BATCHES = 10
 BAND = 'middle'
 INSTRUMENT = 'Alto Saxophone'
 SEGMENT = '2'
-CRITERIA = 0
+METRIC = 0 # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
 
 # initialize dataset, dataloader and created batched data
 file_name = BAND + '_' + INSTRUMENT[:4] + '_' + str(SEGMENT) + '_data'
@@ -43,7 +44,11 @@ else:
 dataset = PitchContourDataset(data_path)
 dataloader = PitchContourDataloader(dataset, NUM_DATA_POINTS, NUM_BATCHES)
 batched_data = dataloader.create_batched_data()
-print(batched_data[0])
+
+# split batches into training, validation and testing
+training_data = batched_data[0:6]
+validation_data = batched_data[6:8] 
+testing_data = batched_data[8:10]
 
 ## initialize model
 perf_model = PitchContourAssessor()
@@ -52,23 +57,87 @@ LR_RATE = 0.001
 perf_optimizer = optim.SGD(perf_model.parameters(), LR_RATE)
 print(perf_model)
 
-# define training method
-def train(batched_data):
+# define evaluation method
+def eval_regression(target, pred):
     """
-    Defines the training cycle for the input batched data
+    Calculates the standard regression metrics
+    Args:
+        target:     (N x 1) torch Float tensor, actual ground truth
+        pred:       (N x 1) torch Float tensor, predicted values from the regression model
     """
-    num_batches = len(batched_data)
+    pred_np = pred.numpy()
+    target_np = target.numpy()
+    r_sq = metrics.r2_score(target_np, pred_np)
+    return r_sq
+
+# define evaluation method
+def eval_model(model, data, metric):
+    """
+    Returns the model performance metrics
+    Args:
+        model:          object, trained model of PitchContourAssessor class
+        data:           list, batched testing data
+        metric:         int, from 0 to 3, which metric to evaluate against
+    """
+    # put the model in eval mode
+    model.eval()
+    # intialize variables
+    num_batches = len(data)
+    pred = np.array([])
+    target = np.array([])
     loss_avg = 0
-	# iterate over batches
+    # iterate over batches for validation
     for batch_idx in range(num_batches):
-		# clear gradients and loss for both melody and rhythm networks
+        # extract pitch tensor and score for the batch
+        pitch_tensor = data[batch_idx]['pitch_tensor']
+        score_tensor = data[batch_idx]['score_tensor'][:, metric]
+        # prepare data for input to model
+        model_input = pitch_tensor.clone()
+        model_target = score_tensor.clone()
+        # convert to cuda tensors if cuda available
+        if CUDA_AVAILABLE:
+            model_input = model_input.cuda()
+            model_target = model_target.cuda()
+        # wrap all tensors in pytorch Variable
+        model_input = Variable(model_input)
+        model_target = Variable(model_target)
+        # compute forward pass for the network
+        model_output = perf_model(model_input)
+        # compute loss
+        loss = criterion(model_output, model_target)
+        loss_avg += loss.data[0]
+        # concatenate target and pred for computing validation metrics
+        pred = torch.cat((pred, model_output.data.view(-1)), 0) if pred.size else model_output.data.view(-1)
+        target = torch.cat((target, score_tensor), 0) if target.size else score_tensor
+    r_sq = eval_regression(target, pred)
+    loss_avg /= num_batches
+    return loss_avg, r_sq
+
+def train(model, criterion, optimizer, data, metric):
+    """
+    Returns the model performance metrics
+    Args:
+        model:          object, trained model of PitchContourAssessor class
+        criterion:      object, of torch.nn.Functional class which defines the loss 
+        optimizer:      object, of torch.optim class which defines the optimization algorithm
+        data:           list, batched testing data
+        metric:         int, from 0 to 3, which metric to evaluate against
+    """
+    # Put the model in training mode
+    model.train() 
+    # Initializations
+    num_batches = len(data)
+    loss_avg = 0
+	# iterate over batches for training
+    for batch_idx in range(num_batches):
+		# clear gradients and loss
         perf_model.zero_grad()
-        loss = 0 
+        loss = 0
 
         # extract pitch tensor and score for the batch
-        pitch_tensor = batched_data[batch_idx]['pitch_tensor']
-        score_tensor = batched_data[batch_idx]['score_tensor'][:, 0] # 0 for musicality
-
+        pitch_tensor = data[batch_idx]['pitch_tensor']
+        score_tensor = data[batch_idx]['score_tensor'][:, metric]
+        
         # prepare data for input to model
         model_input = pitch_tensor.clone()
         model_target = score_tensor.clone()
@@ -79,31 +148,50 @@ def train(batched_data):
 		# wrap all tensors in pytorch Variable
         model_input = Variable(model_input)
         model_target = Variable(model_target)
-
         # compute forward pass for the network
-        model_output = perf_model(model_input)
+        model_output = model(model_input)
         # compute loss
         loss = criterion(model_output, model_target)
-        # compute backward pass and step    
+        # compute backward pass and step
         loss.backward()
-        perf_optimizer.step()
+        optimizer.step()
         # add loss
         loss_avg += loss.data[0]
+    loss_avg /= num_batches
+    return loss_avg
 
-    return loss_avg / num_batches
+# define training method
+def train_and_validate(model, criterion, optimizer, train_data, val_data, metric):
+    """
+    Defines the training and validation cycle for the input batched data
+    Args:
+        model:          object, trained model of PitchContourAssessor class
+        criterion:      object, of torch.nn.Functional class which defines the loss 
+        optimizer:      object, of torch.optim class which defines the optimization algorithm
+        train_data:     list, batched training data
+        val_data:       list, batched validation data
+        metric:         int, from 0 to 3, which metric to evaluate against
+    """
+    # train the network
+    train(model, criterion, optimizer, train_data, metric)
+    # evaluate the network on train data
+    train_loss_avg, train_r_sq = eval_model(model, train_data, metric)
+    # evaluate the network on validation data
+    val_loss_avg, val_r_sq = eval_model(model, val_data, metric)
+    # return values
+    return train_loss_avg, train_r_sq, val_loss_avg, val_r_sq
 
 def save():
     """
     Saves the saved model
     """
     file_info = str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS)
-    save_filename = 'saved/' + file_info + 'PerfModel.pt'
+    save_filename = 'saved/' + file_info + '_PerfModel.pt'
     torch.save(perf_model.state_dict(), save_filename)
     print('Saved as %s' % save_filename)
-    sys.exit()
 
 # define time logging method
-def timeSince(since):
+def time_since(since):
     """
     Returns the time elapsed between now and 'since'
     """
@@ -117,25 +205,33 @@ def timeSince(since):
 configure('runs/' + str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS), flush_secs = 2)
 
 ## define training parameters
-print_every = 1
-start = time.time()
-all_losses = []
+PRINT_EVERY = 1
+START = time.time()
 
 try:
     print("Training for %d epochs..." % NUM_EPOCHS)
     for epoch in range(1, NUM_EPOCHS + 1):
         # train the network
-        loss = train (batched_data)
+        train_loss, train_r_sq, val_loss, val_r_sq = train_and_validate(perf_model, criterion, perf_optimizer, training_data, validation_data, METRIC)
 
         # log data for visualization later
-        log_value('loss', loss, epoch)
+        log_value('train_loss', train_loss, epoch)
+        log_value('val_loss', val_loss, epoch)
+        log_value('train_r_sq', train_r_sq, epoch)
+        log_value('val_r_sq', val_r_sq, epoch)
 
         # print loss
-        if epoch % print_every == 0:
-            print('[%s (%d %.1f%%) %.5f]' % (timeSince(start), epoch,
-                    float(epoch) / NUM_EPOCHS * 100, loss))
+        if epoch % PRINT_EVERY == 0:
+            print('[%s (%d %.1f%%)]' % (time_since(START), epoch, float(epoch) / NUM_EPOCHS * 100))
+            print('[%s %0.5f, %s %0.5f]'% ('Train Loss: ', train_loss, ' R-sq: ', train_r_sq))
+            print('[%s %0.5f, %s %0.5f]'% ('Valid Loss: ', val_loss, ' R-sq: ', val_r_sq))
+
     print("Saving...")
     save()
 except KeyboardInterrupt:
     print("Saving before quit...")
     save()
+
+# test on testing data 
+test_loss, test_r_sq = eval_model(perf_model, testing_data, METRIC)
+print('[%s %0.5f, %s %0.5f]'% ('Testing Loss: ', val_loss, ' R-sq: ', val_r_sq))
