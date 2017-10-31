@@ -3,7 +3,7 @@ import sys
 import dill
 from collections import defaultdict
 import numpy as np
-from dataLoader.DataUtils import DataUtils
+from DataUtils import DataUtils
 
 # Initialize input params, specify the band, intrument, segment information
 BAND = 'middle'
@@ -12,10 +12,9 @@ SEGMENT = 2
 YEAR = ['2013', '2014', '2015']
 
 # define paths to FBA dataset and FBA annotations
-PATH_FBA_DATA = '/Users/Ashis/Documents/Github/FBA2013data/'
-PATH_FBA_ANNO = '/Users/Ashis/Documents/Github/FBA2013/'
+PATH_FBA_ANNO = '/Users/Som/GitHub/FBA2013/'
 
-utils = DataUtils(PATH_FBA_ANNO, PATH_FBA_DATA, BAND, INSTRUMENT)
+utils = DataUtils(PATH_FBA_ANNO, BAND, INSTRUMENT)
 
 # scan student ids based on the input params
 student_ids = {}

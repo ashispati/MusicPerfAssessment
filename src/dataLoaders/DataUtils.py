@@ -8,28 +8,25 @@ import pandas as pd
 from pandas import ExcelFile
 
 class DataUtils(object):
-	"""
-	Class containing helper functions to read the music performance data from the FBA folder
-	"""
+    """
+    Class containing helper functions to read the music performance data from the FBA folder
+    """
 
-	def __init__(self, path_to_annotations, path_to_data, band, instrument):
-		"""
+    def __init__(self, path_to_annotations, band, instrument):
+        """
         Initialized the data utils class
         Arg:
                 path_to_annotations:	string, full path to the folder containing the FBA annotations
-                path_to_data:			string, full path to the folder containing the FBA audio files &
-										 pyin pitch tracks
                 band:					string, which band type
                 instrument:				string, which instrument
-		"""
+        """
         self.path_to_annotations = path_to_annotations
-        self.path_to_data = path_to_data
         self.band = band
         self.instrument = instrument
 
-	def get_excel_file_path(self, year):
+    def get_excel_file_path(self, year):
     	"""
-		Returns the excel file name containing the student performance details
+        Returns the excel file name containing the student performance details
         Arg:
                 year:	string, which year
         """
@@ -66,37 +63,7 @@ class DataUtils(object):
         else:
             annotations_folder += '/'
         return annotations_folder
-
-    def get_pitch_contours_path(self, year):
-        """
-        Returns the full path to the root folder containing the audio and the Pyin pitch contours
-        Arg:
-                year:	string, which year
-        """
-        # create the path to search path
-        if year == '2013':
-            year_folder = '2013-2014'
-        elif year == '2014':
-            year_folder = '2014-2015'
-        elif year == '2015':
-            year_folder = '2015-2016'
-        else:
-            raise ValueError("Invalid value for 'year'")
-        if self.band == 'middle':
-            folder_name = 'middleschool'
-        elif self.band == 'concert':
-            folder_name = 'concertband'
-        elif self.band == 'symphonic':
-            folder_name = 'symphonicband'
-        else:
-            raise ValueError("Invalid value for 'band'")
-        data_folder = self.path_to_data + year_folder + '/' + folder_name
-        if year == '2013':
-            data_folder += 'scores/'
-        else:
-            data_folder += '/'
-        return data_folder
-
+    
     def scan_student_ids(self, year):
         """
         Returns the student ids for the provide inputs as a list
@@ -127,7 +94,7 @@ class DataUtils(object):
                 year:			string, which year
                 segment:		string, which segment
                 student_ids:	list, containing the student ids., if empty we compute it within this
-								 function			 
+								 function
         """
         annotations_folder = self.get_anno_folder_path(year)
         segment_data = []
@@ -157,7 +124,7 @@ class DataUtils(object):
                 student_ids:	list, containing the student ids., if empty we compute it within this
 								 function
         """
-        data_folder = self.get_pitch_contours_path(year)
+        data_folder = self.get_anno_folder_path(year)
         if student_ids == []:
             student_ids = self.scan_student_ids(year)
         segment_info = self.get_segment_info(year, segment, student_ids)
