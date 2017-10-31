@@ -27,7 +27,7 @@ CUDA_AVAILABLE = torch.cuda.is_available()
 print('Running on GPU: ', CUDA_AVAILABLE)
 
 # initializa training parameters
-NUM_EPOCHS = 2000
+NUM_EPOCHS = 3000
 NUM_DATA_POINTS = 390
 NUM_BATCHES = 10
 BAND = 'middle'
@@ -53,7 +53,7 @@ testing_data = batched_data[8:10]
 ## initialize model
 perf_model = PitchContourAssessor()
 criterion = nn.MSELoss()
-LR_RATE = 0.01
+LR_RATE = 0.5
 perf_optimizer = optim.SGD(perf_model.parameters(), LR_RATE)
 print(perf_model)
 
@@ -201,25 +201,40 @@ def time_since(since):
     s -= m * 60
     return '%dm %ds' % (m, s)
 
+def adjust_learning_rate(optimizer, epoch, adjust_every):
+    """
+    Adjusts the learning rate of the optimizer based on the epoch
+    Args:
+       optimizer:      object, of torch.optim class 
+       epoch:          int, epoch number
+       adjust_every:   int, number of epochs after which adjustment is to done
+    """
+    if epoch > 1:
+        if epoch % adjust_every == 0:
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = param_group['lr'] * 0.5
+
+
 # configure tensor-board logger
 configure('runs/' + str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS), flush_secs = 2)
 
 ## define training parameters
 PRINT_EVERY = 1
+ADJUST_EVERY = 1500
 START = time.time()
 
 try:
     print("Training for %d epochs..." % NUM_EPOCHS)
     for epoch in range(1, NUM_EPOCHS + 1):
-        # train the network
+        # perform training and validation
         train_loss, train_r_sq, val_loss, val_r_sq = train_and_validate(perf_model, criterion, perf_optimizer, training_data, validation_data, METRIC)
-
+        # adjut learning rate
+        #adjust_learning_rate(perf_optimizer, epoch, ADJUST_EVERY)
         # log data for visualization later
         log_value('train_loss', train_loss, epoch)
         log_value('val_loss', val_loss, epoch)
         log_value('train_r_sq', train_r_sq, epoch)
         log_value('val_r_sq', val_r_sq, epoch)
-
         # print loss
         if epoch % PRINT_EVERY == 0:
             print('[%s (%d %.1f%%)]' % (time_since(START), epoch, float(epoch) / NUM_EPOCHS * 100))
