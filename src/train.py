@@ -14,8 +14,6 @@ from torch.autograd import Variable
 from models.PitchContourAssessor import PitchContourAssessor
 from dataLoaders.PitchContourDataset import PitchContourDataset
 from dataLoaders.PitchContourDataloader import PitchContourDataloader
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 from tensorboard_logger import configure, log_value
 from sklearn import metrics
 
@@ -25,9 +23,12 @@ torch.manual_seed(1)
 # check is cuda is available and print result
 CUDA_AVAILABLE = torch.cuda.is_available()
 print('Running on GPU: ', CUDA_AVAILABLE)
+if CUDA_AVAILABLE != True:
+    import matplotlib.pyplot as plt
+    import matplotlib.image as mpimg
 
 # initializa training parameters
-NUM_EPOCHS = 3000
+NUM_EPOCHS = 4000
 NUM_DATA_POINTS = 390
 NUM_BATCHES = 10
 BAND = 'middle'
@@ -52,9 +53,12 @@ testing_data = batched_data[8:10]
 
 ## initialize model
 perf_model = PitchContourAssessor()
+if CUDA_AVAILABLE:
+    perf_model.cuda()
 criterion = nn.MSELoss()
-LR_RATE = 0.5
-perf_optimizer = optim.SGD(perf_model.parameters(), LR_RATE)
+LR_RATE = 0.1
+W_DECAY = 1e-5
+perf_optimizer = optim.SGD(perf_model.parameters(), lr =  LR_RATE, weight_decay = W_DECAY)
 print(perf_model)
 
 # define evaluation method
@@ -65,8 +69,12 @@ def eval_regression(target, pred):
         target:     (N x 1) torch Float tensor, actual ground truth
         pred:       (N x 1) torch Float tensor, predicted values from the regression model
     """
-    pred_np = pred.numpy()
-    target_np = target.numpy()
+    if torch.cuda.is_available():
+        pred_np = pred.clone().cpu().numpy()
+        target_np = target.clone().cpu().numpy()
+    else:
+        pred_np = pred_np.clone().numpy()
+        target_np = target.clone().numpy()
     r_sq = metrics.r2_score(target_np, pred_np)
     return r_sq
 
@@ -145,7 +153,7 @@ def train(model, criterion, optimizer, data, metric):
         if CUDA_AVAILABLE:
             model_input = model_input.cuda()
             model_target = model_target.cuda()
-		# wrap all tensors in pytorch Variable
+	# wrap all tensors in pytorch Variable
         model_input = Variable(model_input)
         model_target = Variable(model_target)
         # compute forward pass for the network
@@ -220,7 +228,7 @@ configure('runs/' + str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS), flush_secs = 2
 
 ## define training parameters
 PRINT_EVERY = 1
-ADJUST_EVERY = 1500
+ADJUST_EVERY = 5000
 START = time.time()
 
 try:

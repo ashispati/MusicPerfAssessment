@@ -25,7 +25,7 @@ class DataUtils(object):
         self.instrument = instrument
 
     def get_excel_file_path(self, year):
-    	"""
+        """
         Returns the excel file name containing the student performance details
         Arg:
                 year:	string, which year
@@ -82,7 +82,7 @@ class DataUtils(object):
             start_idx += 1
         # iterate and the store the student ids
         student_ids = []
-        while isinstance(instrument_data[start_idx + 1], (int, long)):
+        while isinstance(instrument_data[start_idx + 1], int):
             student_ids.append(instrument_data[start_idx + 1])
             start_idx += 1
         return student_ids
