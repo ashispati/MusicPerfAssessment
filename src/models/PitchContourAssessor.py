@@ -48,8 +48,7 @@ class PitchContourAssessor(nn.Module):
         mini_batch_size, zero_pad_len = input.size()
 
         # compute the output of the convolutional layer
-        conv1_out = F.relu(self.conv1(
-            input.view(mini_batch_size, 1, zero_pad_len)))
+        conv1_out = F.relu(self.conv1(input.view(mini_batch_size, 1, zero_pad_len)))
         conv2_out = F.relu(self.conv2(conv1_out))
         conv3_out = F.relu(self.conv3(conv2_out))
 
