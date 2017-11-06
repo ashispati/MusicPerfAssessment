@@ -28,7 +28,7 @@ print('Running on GPU: ', CUDA_AVAILABLE)
 
 # initializa training parameters
 NUM_EPOCHS = 3000
-NUM_DATA_POINTS = 390
+NUM_DATA_POINTS = 100
 NUM_BATCHES = 10
 BAND = 'middle'
 INSTRUMENT = 'Alto Saxophone'
@@ -149,7 +149,10 @@ def train(model, criterion, optimizer, data, metric):
         model_input = Variable(model_input)
         model_target = Variable(model_target)
         # compute forward pass for the network
+        mini_batch_size = model_input.size(0)
+        model.init_hidden(mini_batch_size)
         model_output = model(model_input)
+
         # compute loss
         loss = criterion(model_output, model_target)
         # compute backward pass and step

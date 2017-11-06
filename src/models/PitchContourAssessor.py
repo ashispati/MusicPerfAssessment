@@ -30,7 +30,8 @@ class PitchContourAssessor(nn.Module):
         # define the LSTM module
         self.lstm = nn.LSTM(self.n_features, self.hidden_size,
                             self.n_layers, batch_first=True)
-
+        # intialize the hidden state
+        self.init_hidden(1)
         # define the final linear layer
         self.linear = nn.Linear(self.hidden_size, 1)
 
@@ -53,7 +54,6 @@ class PitchContourAssessor(nn.Module):
         conv3_out = F.relu(self.conv3(conv2_out))
 
         # compute the output of the lstm layer
-        self.init_hidden(mini_batch_size)
         # transpose to ensure sequence length is dim 1 now
         lstm_out, self.hidden = self.lstm(conv3_out.transpose(1, 2))
 
