@@ -7,6 +7,12 @@ import numpy as np
 import pandas as pd
 from pandas import ExcelFile
 
+# define bad students ids 
+# for which recording is bad or segment annotation doesn't exist
+bad_ids = {}
+bad_ids['middle'] = [32951, 42996, 43261, 44627, 39299, 39421, 41333, 42462, 43811, 44319, 61218, 56948]
+bad_ids['symphonic'] = [33026, 33476, 35301, 41602, 52950, 53083]
+
 class DataUtils(object):
     """
     Class containing helper functions to read the music performance data from the FBA folder
@@ -23,6 +29,7 @@ class DataUtils(object):
         self.path_to_annotations = path_to_annotations
         self.band = band
         self.instrument = instrument
+        self.bad_ids = bad_ids[band]
 
     def get_excel_file_path(self, year):
         """
@@ -85,6 +92,10 @@ class DataUtils(object):
         while isinstance(instrument_data[start_idx + 1], int):
             student_ids.append(instrument_data[start_idx + 1])
             start_idx += 1
+        # remove bad student ids
+        for i in range(len(self.bad_ids)):
+            if self.bad_ids[i] in student_ids: 
+                student_ids.remove(self.bad_ids[i])
         return student_ids
 
     def get_segment_info(self, year, segment, student_ids=[]):
@@ -161,7 +172,7 @@ class DataUtils(object):
     def get_perf_rating_segment(self, year, segment, student_ids=[]):
         """
         Returns the performane ratings given by human judges for the input segment as a list of
-		 tuples
+		tuples
         Args:
                 year:			string, which year
                 segment:		string, which segment
@@ -188,3 +199,26 @@ class DataUtils(object):
                 (to_floats[2], to_floats[3], to_floats[4], to_floats[5]))
 
         return perf_ratings
+
+    def create_data(self, year, segment):
+        """
+        Creates the data representation for a particular year
+        Args:
+                year:           string, which year
+                segment:		string, which segment
+        """
+        perf_assessment_data = []
+        student_ids = self.scan_student_ids(year)
+        pitch_contour_data = self.get_pitch_contours_segment(year, segment, student_ids)
+        ground_truth = self.get_perf_rating_segment(year, segment, student_ids)
+        for student_idx in range(len(student_ids)):
+            assessment_data = {}
+            assessment_data['year'] = year
+            assessment_data['band'] = self.band
+            assessment_data['instrumemt'] = self.instrument
+            assessment_data['student_id'] = student_ids[student_idx]
+            assessment_data['segment'] = segment
+            assessment_data['pitch_contour'] = pitch_contour_data[student_idx]
+            assessment_data['ratings'] = ground_truth[student_idx]
+            perf_assessment_data.append(assessment_data)
+        return perf_assessment_data

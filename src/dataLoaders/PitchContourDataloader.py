@@ -7,6 +7,9 @@ from torch.utils.data import Dataset, DataLoader
 import torch.multiprocessing as multiprocessing
 from dataLoaders.PitchContourDataset import PitchContourDataset
 
+# set manual random seed for reproducibility
+torch.manual_seed(1)
+
 class PitchContourDataloader(DataLoader):
     """
 	Dataloader class for pitch contour music performance assessment data
@@ -55,7 +58,6 @@ class PitchContourDataloader(DataLoader):
         sorted_data = self.get_sorted_data()
         # batch the sorted data
         batched_data = [None] * self.num_batches
-
         count = 0
         for batch_num in range(self.num_batches):
             batched_data[batch_num] = list()

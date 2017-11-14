@@ -37,7 +37,7 @@ SEGMENT = '2'
 METRIC = 0 # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
 
 # initialize dataset, dataloader and created batched data
-file_name = BAND + '_' + INSTRUMENT[:4] + '_' + str(SEGMENT) + '_data'
+file_name = BAND + '_' + str(SEGMENT) + '_data'
 if sys.version_info[0] < 3:
     data_path = 'dat/' + file_name + '.dill'
 else:
@@ -73,7 +73,7 @@ def eval_regression(target, pred):
         pred_np = pred.clone().cpu().numpy()
         target_np = target.clone().cpu().numpy()
     else:
-        pred_np = pred_np.clone().numpy()
+        pred_np = pred.clone().numpy()
         target_np = target.clone().numpy()
     r_sq = metrics.r2_score(target_np, pred_np)
     return r_sq
