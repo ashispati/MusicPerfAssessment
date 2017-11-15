@@ -28,13 +28,13 @@ if CUDA_AVAILABLE != True:
     import matplotlib.image as mpimg
 
 # initializa training parameters
-NUM_EPOCHS = 3000
-NUM_DATA_POINTS = 100
+NUM_EPOCHS = 15000
+NUM_DATA_POINTS = 1400
 NUM_BATCHES = 10
 BAND = 'middle'
 INSTRUMENT = 'Alto Saxophone'
 SEGMENT = '2'
-METRIC = 0 # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
+METRIC = 1 # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
 
 # initialize dataset, dataloader and created batched data
 file_name = BAND + '_' + str(SEGMENT) + '_data'
@@ -196,7 +196,7 @@ def save():
     """
     Saves the saved model
     """
-    file_info = str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS)
+    file_info = str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS) + '_' + str(METRIC)
     save_filename = 'saved/' + file_info + '_PerfModel.pt'
     torch.save(perf_model.state_dict(), save_filename)
     print('Saved as %s' % save_filename)
@@ -231,7 +231,7 @@ configure('runs/' + str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS), flush_secs = 2
 
 ## define training parameters
 PRINT_EVERY = 1
-ADJUST_EVERY = 5000
+ADJUST_EVERY = 3000
 START = time.time()
 
 try:
@@ -240,7 +240,7 @@ try:
         # perform training and validation
         train_loss, train_r_sq, val_loss, val_r_sq = train_and_validate(perf_model, criterion, perf_optimizer, training_data, validation_data, METRIC)
         # adjut learning rate
-        #adjust_learning_rate(perf_optimizer, epoch, ADJUST_EVERY)
+        adjust_learning_rate(perf_optimizer, epoch, ADJUST_EVERY)
         # log data for visualization later
         log_value('train_loss', train_loss, epoch)
         log_value('val_loss', val_loss, epoch)
