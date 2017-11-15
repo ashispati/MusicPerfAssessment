@@ -20,12 +20,17 @@ class PitchContourAssessor(nn.Module):
         self.stride = 6
         self.hidden_size = 128
         self.n_layers = 3
-        self.n_features = 32
+        self.n1_features = 16
+        self.n2_features = 32
+        self.n_features = 64
         # define the different convolutional modules
-        self.conv1 = nn.Conv1d(1, 6, self.kernel_size, self.stride)
-        self.conv2 = nn.Conv1d(6, 16, self.kernel_size, self.stride)
-        self.conv3 = nn.Conv1d(16, self.n_features,
+        self.conv1 = nn.Conv1d(1, self.n1_features, self.kernel_size, self.stride)
+        self.conv1_bn = nn.BatchNorm1d(self.n1_features)
+        self.conv2 = nn.Conv1d(self.n1_features, self.n2_features, self.kernel_size, self.stride)
+        self.conv2_bn = nn.BatchNorm1d(self.n2_features)
+        self.conv3 = nn.Conv1d(self.n2_features, self.n_features,
                                self.kernel_size, self.stride)
+        self.conv3_bn = nn.BatchNorm1d(self.n_features)
 
         # define the LSTM module
         self.lstm = nn.LSTM(self.n_features, self.hidden_size,
@@ -48,9 +53,9 @@ class PitchContourAssessor(nn.Module):
         mini_batch_size, zero_pad_len = input.size()
 
         # compute the output of the convolutional layer
-        conv1_out = F.relu(self.conv1(input.view(mini_batch_size, 1, zero_pad_len)))
-        conv2_out = F.relu(self.conv2(conv1_out))
-        conv3_out = F.relu(self.conv3(conv2_out))
+        conv1_out = F.relu(self.conv1_bn(self.conv1(input.view(mini_batch_size, 1, zero_pad_len))))
+        conv2_out = F.relu(self.conv2_bn(self.conv2(conv1_out)))
+        conv3_out = F.relu(self.conv3_bn(self.conv3(conv2_out)))
 
         # compute the output of the lstm layer
         # transpose to ensure sequence length is dim 1 now

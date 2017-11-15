@@ -153,7 +153,7 @@ def train(model, criterion, optimizer, data, metric):
         if CUDA_AVAILABLE:
             model_input = model_input.cuda()
             model_target = model_target.cuda()
-	# wrap all tensors in pytorch Variable
+	    # wrap all tensors in pytorch Variable
         model_input = Variable(model_input)
         model_target = Variable(model_target)
         # compute forward pass for the network
