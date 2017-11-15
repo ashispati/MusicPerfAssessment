@@ -16,15 +16,18 @@ class PitchContourAssessor(nn.Module):
         """
         super(PitchContourAssessor, self).__init__()
         # initialize interal parameters
-        self.kernel_size = 13
-        self.stride = 6
+        self.kernel_size = 5
+        self.stride = 3
         self.hidden_size = 128
         self.n_layers = 3
+        self.n0_features = 8
         self.n1_features = 16
         self.n2_features = 32
         self.n_features = 64
         # define the different convolutional modules
-        self.conv1 = nn.Conv1d(1, self.n1_features, self.kernel_size, self.stride)
+        self.conv0 = nn.Conv1d(1, self.n0_features, self.kernel_size, self.stride)
+        self.conv0_bn = nn.BatchNorm1d(self.n0_features)
+        self.conv1 = nn.Conv1d(self.n0_features, self.n1_features, self.kernel_size, self.stride)
         self.conv1_bn = nn.BatchNorm1d(self.n1_features)
         self.conv2 = nn.Conv1d(self.n1_features, self.n2_features, self.kernel_size, self.stride)
         self.conv2_bn = nn.BatchNorm1d(self.n2_features)
@@ -53,7 +56,8 @@ class PitchContourAssessor(nn.Module):
         mini_batch_size, zero_pad_len = input.size()
 
         # compute the output of the convolutional layer
-        conv1_out = F.relu(self.conv1_bn(self.conv1(input.view(mini_batch_size, 1, zero_pad_len))))
+        conv0_out = F.relu(self.conv0_bn(self.conv0(input.view(mini_batch_size, 1, zero_pad_len))))
+        conv1_out = F.relu(self.conv1_bn(self.conv1(conv0_out)))
         conv2_out = F.relu(self.conv2_bn(self.conv2(conv1_out)))
         conv3_out = F.relu(self.conv3_bn(self.conv3(conv2_out)))
 

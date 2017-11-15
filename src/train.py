@@ -34,7 +34,7 @@ NUM_BATCHES = 10
 BAND = 'middle'
 INSTRUMENT = 'Alto Saxophone'
 SEGMENT = '2'
-METRIC = 1 # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
+METRIC = 0 # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
 
 # initialize dataset, dataloader and created batched data
 file_name = BAND + '_' + str(SEGMENT) + '_data'
@@ -47,9 +47,9 @@ dataloader = PitchContourDataloader(dataset, NUM_DATA_POINTS, NUM_BATCHES)
 batched_data = dataloader.create_batched_data()
 
 # split batches into training, validation and testing
-training_data = batched_data[0:6]
-validation_data = batched_data[6:8] 
-testing_data = batched_data[8:10]
+training_data = batched_data[4:10]
+validation_data = batched_data[0:2] 
+testing_data = batched_data[2:4]
 
 ## initialize model
 perf_model = PitchContourAssessor()
@@ -227,7 +227,7 @@ def adjust_learning_rate(optimizer, epoch, adjust_every):
 
 
 # configure tensor-board logger
-configure('runs/' + str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS), flush_secs = 2)
+configure('runs/' + str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS) + '_' + str(METRIC) , flush_secs = 2)
 
 ## define training parameters
 PRINT_EVERY = 1
@@ -240,7 +240,7 @@ try:
         # perform training and validation
         train_loss, train_r_sq, val_loss, val_r_sq = train_and_validate(perf_model, criterion, perf_optimizer, training_data, validation_data, METRIC)
         # adjut learning rate
-        adjust_learning_rate(perf_optimizer, epoch, ADJUST_EVERY)
+        # adjust_learning_rate(perf_optimizer, epoch, ADJUST_EVERY)
         # log data for visualization later
         log_value('train_loss', train_loss, epoch)
         log_value('val_loss', val_loss, epoch)
