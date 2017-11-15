@@ -29,7 +29,7 @@ if CUDA_AVAILABLE != True:
 
 # initializa training parameters
 NUM_EPOCHS = 3000
-NUM_DATA_POINTS = 100
+NUM_DATA_POINTS = 1400
 NUM_BATCHES = 10
 BAND = 'middle'
 INSTRUMENT = 'Alto Saxophone'
@@ -153,7 +153,7 @@ def train(model, criterion, optimizer, data, metric):
         if CUDA_AVAILABLE:
             model_input = model_input.cuda()
             model_target = model_target.cuda()
-	# wrap all tensors in pytorch Variable
+	    # wrap all tensors in pytorch Variable
         model_input = Variable(model_input)
         model_target = Variable(model_target)
         # compute forward pass for the network
