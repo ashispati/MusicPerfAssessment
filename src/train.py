@@ -11,7 +11,7 @@ import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from models.PitchContourAssessor import PitchContourAssessor
+from models.PitchContourAssessorLstmOnly import PitchContourAssessorLstmOnly
 from dataLoaders.PitchContourDataset import PitchContourDataset
 from dataLoaders.PitchContourDataloader import PitchContourDataloader
 from tensorboard_logger import configure, log_value
@@ -52,7 +52,7 @@ validation_data = batched_data[0:2]
 testing_data = batched_data[2:4]
 
 ## initialize model
-perf_model = PitchContourAssessor()
+perf_model = PitchContourAssessorLstmOnly()
 if CUDA_AVAILABLE:
     perf_model.cuda()
 criterion = nn.MSELoss()
