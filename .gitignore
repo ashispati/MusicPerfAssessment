@@ -3,6 +3,7 @@
 data/
 src/runs/
 src/saved/
+src/dat/
 
 # External Library Source Code #
 ################################

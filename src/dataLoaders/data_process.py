@@ -12,7 +12,12 @@ SEGMENT = 2
 YEAR = ['2013', '2014', '2015']
 
 # define paths to FBA dataset and FBA annotations
-PATH_FBA_ANNO = '/home/apati/FBA2013/'
+# NEED TO EDIT THE PATH HERE IF USING ON A DIFFERENT COMPUTER
+if sys.version_info[0] < 3:
+    PATH_FBA_ANNO = '/Users/Som/GitHub/FBA2013'
+else:
+    PATH_FBA_ANNO = '/home/apati/FBA2013/'
+
 
 # create data holder
 perf_assessment_data = []
