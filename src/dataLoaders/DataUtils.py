@@ -10,7 +10,7 @@ from pandas import ExcelFile
 # define bad students ids 
 # for which recording is bad or segment annotation doesn't exist
 bad_ids = {}
-bad_ids['middle'] = [32951, 42996, 43261, 44627, 56948, 34299, 39421, 41333, 42462, 43811, 44319, 61218, 29266, 33163]
+bad_ids['middle'] = [32951, 42996, 43261, 44627, 56948, 39299, 39421, 41333, 42462, 43811, 44319, 61218, 29266, 33163]
 bad_ids['symphonic'] = [33026, 33476, 35301, 41602, 52950, 53083, 46038, 42341, 51598, 56778, 30430, 55642, 60935]
 
 class DataUtils(object):
