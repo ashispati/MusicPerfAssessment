@@ -11,7 +11,7 @@ import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from models.PitchContourAssessorLstmOnly import PitchContourAssessorLstmOnly
+from models.PitchContourAssessor import PitchContourAssessor
 from dataLoaders.PitchContourDataset import PitchContourDataset
 from dataLoaders.PitchContourDataloader import PitchContourDataloader
 from tensorboard_logger import configure, log_value
@@ -28,11 +28,10 @@ if CUDA_AVAILABLE != True:
     import matplotlib.image as mpimg
 
 # initializa training parameters
-NUM_EPOCHS = 15000
+NUM_EPOCHS = 10000
 NUM_DATA_POINTS = 1400
 NUM_BATCHES = 10
 BAND = 'middle'
-INSTRUMENT = 'Alto Saxophone'
 SEGMENT = '2'
 METRIC = 0 # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
 
@@ -47,12 +46,12 @@ dataloader = PitchContourDataloader(dataset, NUM_DATA_POINTS, NUM_BATCHES)
 batched_data = dataloader.create_batched_data()
 
 # split batches into training, validation and testing
-training_data = batched_data[4:10]
-validation_data = batched_data[0:2] 
-testing_data = batched_data[2:4]
+training_data = batched_data[0:8]
+validation_data = batched_data[8:9] 
+testing_data = batched_data[9:10]
 
 ## initialize model
-perf_model = PitchContourAssessorLstmOnly()
+perf_model = PitchContourAssessor()
 if CUDA_AVAILABLE:
     perf_model.cuda()
 criterion = nn.MSELoss()
@@ -110,7 +109,9 @@ def eval_model(model, data, metric):
         model_input = Variable(model_input)
         model_target = Variable(model_target)
         # compute forward pass for the network
-        model_output = perf_model(model_input)
+        mini_batch_size = model_input.size(0)
+        model.init_hidden(mini_batch_size)
+        model_output = model(model_input)
         # compute loss
         loss = criterion(model_output, model_target)
         loss_avg += loss.data[0]
@@ -139,7 +140,7 @@ def train(model, criterion, optimizer, data, metric):
 	# iterate over batches for training
     for batch_idx in range(num_batches):
 		# clear gradients and loss
-        perf_model.zero_grad()
+        model.zero_grad()
         loss = 0
 
         # extract pitch tensor and score for the batch
@@ -153,7 +154,7 @@ def train(model, criterion, optimizer, data, metric):
         if CUDA_AVAILABLE:
             model_input = model_input.cuda()
             model_target = model_target.cuda()
-	    # wrap all tensors in pytorch Variable
+	# wrap all tensors in pytorch Variable
         model_input = Variable(model_input)
         model_target = Variable(model_target)
         # compute forward pass for the network
@@ -192,12 +193,13 @@ def train_and_validate(model, criterion, optimizer, train_data, val_data, metric
     # return values
     return train_loss_avg, train_r_sq, val_loss_avg, val_r_sq
 
-def save():
+
+file_info = str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS) + '_' + BAND + '_' + str(METRIC)
+def save(filename):
     """
     Saves the saved model
     """
-    file_info = str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS) + '_' + str(METRIC)
-    save_filename = 'saved/' + file_info + '_PerfModel.pt'
+    save_filename = 'saved/' + filename + '_Reg.pt'
     torch.save(perf_model.state_dict(), save_filename)
     print('Saved as %s' % save_filename)
 
@@ -227,11 +229,11 @@ def adjust_learning_rate(optimizer, epoch, adjust_every):
 
 
 # configure tensor-board logger
-configure('runs/' + str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS) + '_' + str(METRIC) , flush_secs = 2)
+configure('runs/' + file_info + '_Reg' , flush_secs = 2)
 
 ## define training parameters
 PRINT_EVERY = 1
-ADJUST_EVERY = 3000
+ADJUST_EVERY = 1000
 START = time.time()
 
 try:
@@ -240,7 +242,7 @@ try:
         # perform training and validation
         train_loss, train_r_sq, val_loss, val_r_sq = train_and_validate(perf_model, criterion, perf_optimizer, training_data, validation_data, METRIC)
         # adjut learning rate
-        # adjust_learning_rate(perf_optimizer, epoch, ADJUST_EVERY)
+        adjust_learning_rate(perf_optimizer, epoch, ADJUST_EVERY)
         # log data for visualization later
         log_value('train_loss', train_loss, epoch)
         log_value('val_loss', val_loss, epoch)
@@ -253,10 +255,10 @@ try:
             print('[%s %0.5f, %s %0.5f]'% ('Valid Loss: ', val_loss, ' R-sq: ', val_r_sq))
 
     print("Saving...")
-    save()
+    save(file_info)
 except KeyboardInterrupt:
     print("Saving before quit...")
-    save()
+    save(file_info)
 
 # test on testing data 
 test_loss, test_r_sq = eval_model(perf_model, testing_data, METRIC)

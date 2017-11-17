@@ -8,7 +8,7 @@ from DataUtils import DataUtils
 
 
 # Initialize input params, specify the band, intrument, segment information
-BAND = 'symphonic'
+BAND = 'middle'
 SEGMENT = 2
 YEAR = ['2013', '2014', '2015']
 

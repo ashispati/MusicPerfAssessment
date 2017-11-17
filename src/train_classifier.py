@@ -28,8 +28,8 @@ if CUDA_AVAILABLE != True:
     import matplotlib.image as mpimg
 
 # initializa training parameters
-NUM_EPOCHS = 100
-NUM_DATA_POINTS = 50
+NUM_EPOCHS = 10000
+NUM_DATA_POINTS = 1500
 NUM_BATCHES = 10
 BAND = 'symphonic'
 SEGMENT = '2'
@@ -109,7 +109,7 @@ def eval_model(model, data, metric):
         model_input = Variable(model_input)
         model_target = Variable(model_target)
         # compute forward pass for the network
-        model_output = perf_model(model_input)
+        model_output = model(model_input)
         # compute loss
         loss = criterion(model_output, model_target)
         loss_avg += loss.data[0]
@@ -139,7 +139,7 @@ def train(model, criterion, optimizer, data, metric):
 	# iterate over batches for training
     for batch_idx in range(num_batches):
 		# clear gradients and loss
-        perf_model.zero_grad()
+        model.zero_grad()
         loss = 0
 
         # extract pitch tensor and score for the batch
