@@ -28,8 +28,8 @@ if CUDA_AVAILABLE != True:
     import matplotlib.image as mpimg
 
 # initializa training parameters
-NUM_EPOCHS = 10000
-NUM_DATA_POINTS = 1400
+NUM_EPOCHS = 100
+NUM_DATA_POINTS = 100
 NUM_BATCHES = 10
 BAND = 'middle'
 SEGMENT = '2'
@@ -50,6 +50,34 @@ training_data = batched_data[0:8]
 validation_data = batched_data[8:9] 
 testing_data = batched_data[9:10]
 
+# augment data
+def augment_data(data):
+    """
+    Augments the data using pitch shifting
+    Args:
+        data: batched data
+    """
+    num_batches = len(data)
+    aug_data = [None] * num_batches
+    # create augmented data
+    for batch_idx in range(num_batches):
+        mini_batch_size, seq_len = data[batch_idx]['pitch_tensor'].size()
+        pitch_shift = ((torch.rand(mini_batch_size, 1) * 4) - 2) / 127.0
+        pitch_shift = pitch_shift.expand(mini_batch_size, seq_len)
+        pitch_tensor = data[batch_idx]['pitch_tensor'].clone()
+        pitch_tensor[pitch_tensor != 0] = pitch_tensor[pitch_tensor != 0] + pitch_shift[pitch_tensor != 0]
+        new_data = {}
+        new_data['pitch_tensor'] = pitch_tensor
+        new_data['score_tensor'] = data[batch_idx]['score_tensor'].clone()
+        new_data['class_tensor'] = data[batch_idx]['class_tensor'].clone()
+        aug_data[batch_idx] = new_data
+    # combine with orignal data
+    aug_data = aug_data + data
+    return aug_data
+
+aug_training_data = augment_data(training_data)
+aug_validation_data = augment_data(validation_data)
+
 ## initialize model
 perf_model = PitchContourAssessor()
 if CUDA_AVAILABLE:
@@ -57,7 +85,8 @@ if CUDA_AVAILABLE:
 criterion = nn.MSELoss()
 LR_RATE = 0.1
 W_DECAY = 1e-5
-perf_optimizer = optim.SGD(perf_model.parameters(), lr =  LR_RATE, weight_decay = W_DECAY)
+MOMENTUM = 0.8
+perf_optimizer = optim.SGD(perf_model.parameters(), lr= LR_RATE, momentum=MOMENTUM, weight_decay=W_DECAY)
 print(perf_model)
 
 # define evaluation method
@@ -74,8 +103,16 @@ def eval_regression(target, pred):
     else:
         pred_np = pred.clone().numpy()
         target_np = target.clone().numpy()
+    
+    # compute r-sq score 
     r_sq = metrics.r2_score(target_np, pred_np)
-    return r_sq
+    # compute classification accuracy
+    pred_class = np.rint(pred_np * 10)
+    pred_class[pred_class < 0] = 0
+    pred_class[pred_class > 10] = 10
+    target_class = np.rint(target_np * 10)
+    accuracy = metrics.accuracy_score(target_class, pred_class, normalize=True)
+    return r_sq, accuracy
 
 # define evaluation method
 def eval_model(model, data, metric):
@@ -118,9 +155,9 @@ def eval_model(model, data, metric):
         # concatenate target and pred for computing validation metrics
         pred = torch.cat((pred, model_output.data.view(-1)), 0) if pred.size else model_output.data.view(-1)
         target = torch.cat((target, score_tensor), 0) if target.size else score_tensor
-    r_sq = eval_regression(target, pred)
+    r_sq, accuracy = eval_regression(target, pred)
     loss_avg /= num_batches
-    return loss_avg, r_sq
+    return loss_avg, r_sq, accuracy
 
 def train(model, criterion, optimizer, data, metric):
     """
@@ -187,11 +224,11 @@ def train_and_validate(model, criterion, optimizer, train_data, val_data, metric
     # train the network
     train(model, criterion, optimizer, train_data, metric)
     # evaluate the network on train data
-    train_loss_avg, train_r_sq = eval_model(model, train_data, metric)
+    train_loss_avg, train_r_sq, train_accu = eval_model(model, train_data, metric)
     # evaluate the network on validation data
-    val_loss_avg, val_r_sq = eval_model(model, val_data, metric)
+    val_loss_avg, val_r_sq, val_accu = eval_model(model, val_data, metric)
     # return values
-    return train_loss_avg, train_r_sq, val_loss_avg, val_r_sq
+    return train_loss_avg, train_r_sq, train_accu, val_loss_avg, val_r_sq, val_accu
 
 
 file_info = str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS) + '_' + BAND + '_' + str(METRIC)
@@ -240,7 +277,7 @@ try:
     print("Training for %d epochs..." % NUM_EPOCHS)
     for epoch in range(1, NUM_EPOCHS + 1):
         # perform training and validation
-        train_loss, train_r_sq, val_loss, val_r_sq = train_and_validate(perf_model, criterion, perf_optimizer, training_data, validation_data, METRIC)
+        train_loss, train_r_sq, train_accu, val_loss, val_r_sq, val_accu = train_and_validate(perf_model, criterion, perf_optimizer, aug_training_data, aug_validation_data, METRIC)
         # adjut learning rate
         adjust_learning_rate(perf_optimizer, epoch, ADJUST_EVERY)
         # log data for visualization later
@@ -248,11 +285,13 @@ try:
         log_value('val_loss', val_loss, epoch)
         log_value('train_r_sq', train_r_sq, epoch)
         log_value('val_r_sq', val_r_sq, epoch)
+        log_value('train_accu', train_accu, epoch)
+        log_value('val_accu', val_accu, epoch)
         # print loss
         if epoch % PRINT_EVERY == 0:
             print('[%s (%d %.1f%%)]' % (time_since(START), epoch, float(epoch) / NUM_EPOCHS * 100))
-            print('[%s %0.5f, %s %0.5f]'% ('Train Loss: ', train_loss, ' R-sq: ', train_r_sq))
-            print('[%s %0.5f, %s %0.5f]'% ('Valid Loss: ', val_loss, ' R-sq: ', val_r_sq))
+            print('[%s %0.5f, %s %0.5f, %s %0.5f]'% ('Train Loss: ', train_loss, ' R-sq: ', train_r_sq, ' Accu:', train_accu))
+            print('[%s %0.5f, %s %0.5f, %s %0.5f]'% ('Valid Loss: ', val_loss, ' R-sq: ', val_r_sq, ' Accu:', val_accu))
 
     print("Saving...")
     save(file_info)
@@ -261,5 +300,5 @@ except KeyboardInterrupt:
     save(file_info)
 
 # test on testing data 
-test_loss, test_r_sq = eval_model(perf_model, testing_data, METRIC)
-print('[%s %0.5f, %s %0.5f]'% ('Testing Loss: ', test_loss, ' R-sq: ', test_r_sq))
+test_loss, test_r_sq, test_accu = eval_model(perf_model, testing_data, METRIC)
+print('[%s %0.5f, %s %0.5f, %s %0.5f]'% ('Testing Loss: ', test_loss, ' R-sq: ', test_r_sq, ' Accu:', test_accu))
