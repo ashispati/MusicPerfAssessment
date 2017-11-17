@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 
 
-class PitchContourAssessorLstmOnly(nn.Module):
+class PitchContourClassifier(nn.Module):
     """
     Class to implement a deep neural model for music performance assessment using
 	 pitch contours as input
@@ -14,19 +14,34 @@ class PitchContourAssessorLstmOnly(nn.Module):
         """
         Initializes the class with internal parameters for the different layers
         """
-        super(PitchContourAssessorLstmOnly, self).__init__()
+        super(PitchContourClassifier, self).__init__()
         # initialize interal parameters
-        self.n_features = 64
+        self.kernel_size = 5
+        self.stride = 3
         self.hidden_size = 128
         self.n_layers = 3
-        # define the linear layer
-        self.lin = nn.Linear(1, self.n_features)
+        self.n_classes = 11
+        self.n0_features = 8
+        self.n1_features = 16
+        self.n2_features = 32
+        self.n3_features = 64
+         # define the different convolutional modules
+        self.conv0 = nn.Conv1d(1, self.n0_features, self.kernel_size, self.stride)
+        self.conv0_bn = nn.BatchNorm1d(self.n0_features)
+        self.conv1 = nn.Conv1d(self.n0_features, self.n1_features, self.kernel_size, self.stride)
+        self.conv1_bn = nn.BatchNorm1d(self.n1_features)
+        self.conv2 = nn.Conv1d(self.n1_features, self.n2_features, self.kernel_size, self.stride)
+        self.conv2_bn = nn.BatchNorm1d(self.n2_features)
+        self.conv3 = nn.Conv1d(self.n2_features, self.n3_features,
+                               self.kernel_size, self.stride)
+        self.conv3_bn = nn.BatchNorm1d(self.n3_features)
         # define the LSTM module
-        self.lstm = nn.LSTM(self.n_features, self.hidden_size, self.n_layers, batch_first=True)
-        # intialize the hidden state
+        self.lstm = nn.LSTM(self.n3_features, self.hidden_size,
+                            self.n_layers, batch_first=True)
+
         self.init_hidden(1)
         # define the final linear layer
-        self.linear = nn.Linear(self.hidden_size, 1)
+        self.linear = nn.Linear(self.hidden_size, self.n_classes)
 
     def forward(self, input):
         """
@@ -37,18 +52,21 @@ class PitchContourAssessorLstmOnly(nn.Module):
             			zero_pad_len: 		length to which each input sequence is zero-padded
                 		seq_lengths:		torch tensor (mini_batch_size x 1), length of each pitch contour
         """
-        # get mini batch size from input
+         # get mini batch size from input
         mini_batch_size, zero_pad_len = input.size()
 
-        # compute the output of the linear layer
-        lin_out = F.relu(self.lin(input.view(mini_batch_size, zero_pad_len, 1)))
-   
+        # compute the output of the convolutional layer
+        conv0_out = F.relu(self.conv0_bn(self.conv0(input.view(mini_batch_size, 1, zero_pad_len))))
+        conv1_out = F.relu(self.conv1_bn(self.conv1(conv0_out)))
+        conv2_out = F.relu(self.conv2_bn(self.conv2(conv1_out)))
+        conv3_out = F.relu(self.conv3_bn(self.conv3(conv2_out)))
+
         # compute the output of the lstm layer
         # transpose to ensure sequence length is dim 1 now
-        lstm_out, self.hidden = self.lstm(lin_out)
+        lstm_out, self.hidden = self.lstm(conv3_out.transpose(1, 2))
 
         # extract final output of the lstm layer
-		# TODO: take individual lengths into account
+		# TODO: take into individual lengths
         mini_batch_size, lstm_seq_len, num_features = lstm_out.size()
         final_lstm_out = lstm_out[:, lstm_seq_len - 1, :]
 

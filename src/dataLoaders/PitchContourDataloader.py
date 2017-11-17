@@ -64,6 +64,7 @@ class PitchContourDataloader(DataLoader):
             longest_seq_len = sorted_data[count]['length']
             pitch_tensor = torch.zeros(self.mini_batch_size, longest_seq_len)
             score_tensor = torch.zeros(self.mini_batch_size, len(sorted_data[count]['ratings']))
+            class_score_tensor = torch.zeros(self.mini_batch_size, len(sorted_data[count]['class_ratings'])).long()
             zero_pad = ZeroPad(longest_seq_len)
             for seq_num in range(self.mini_batch_size):
                 # convert pitch contour to torch tensor
@@ -71,11 +72,14 @@ class PitchContourDataloader(DataLoader):
                 pitch_tensor[seq_num, :] = zero_pad.apply_pad(pc_tensor.float())
                 # convert score tuple to torch tensor
                 s_tensor = torch.from_numpy(np.asarray(sorted_data[count]['ratings']))
+                c_tensor = torch.from_numpy(np.asarray(sorted_data[count]['class_ratings'])).long()
                 score_tensor[seq_num, :] = s_tensor
+                class_score_tensor[seq_num, :] = c_tensor
                 count += 1
             data = {}
             data['pitch_tensor'] = pitch_tensor
             data['score_tensor'] = score_tensor
+            data['class_tensor'] = class_score_tensor
             batched_data[batch_num] = data
         return batched_data
 

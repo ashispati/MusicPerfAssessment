@@ -10,8 +10,8 @@ from pandas import ExcelFile
 # define bad students ids 
 # for which recording is bad or segment annotation doesn't exist
 bad_ids = {}
-bad_ids['middle'] = [32951, 42996, 43261, 44627, 56948, 39299, 39421, 41333, 42462, 43811, 44319, 61218, 29266, 33163]
-bad_ids['symphonic'] = [33026, 33476, 35301, 41602, 52950, 53083, 46038, 42341, 51598, 56778, 30430, 55642, 60935]
+bad_ids['middle'] = [29429, 32951, 42996, 43261, 44627, 56948, 39299, 39421, 41333, 42462, 43811, 44319, 61218, 29266, 33163]
+bad_ids['symphonic'] = [33026, 33476, 35301, 41602, 52950, 53083, 46038, 33368, 42341, 51598, 56778, 56925, 30430, 55642, 60935]
 
 class DataUtils(object):
     """
@@ -199,7 +199,7 @@ class DataUtils(object):
                 (to_floats[2], to_floats[3], to_floats[4], to_floats[5]))
 
         return perf_ratings
-
+    
     def create_data(self, year, segment):
         """
         Creates the data representation for a particular year
@@ -220,5 +220,6 @@ class DataUtils(object):
             assessment_data['segment'] = segment
             assessment_data['pitch_contour'] = pitch_contour_data[student_idx]
             assessment_data['ratings'] = ground_truth[student_idx]
+            assessment_data['class_ratings'] = [round(x * 10) for x in ground_truth[student_idx]]
             perf_assessment_data.append(assessment_data)
         return perf_assessment_data

@@ -3,6 +3,7 @@ import sys
 from collections import defaultdict
 import dill
 import numpy as np
+import scipy.io
 from DataUtils import DataUtils
 
 
@@ -43,6 +44,8 @@ file_name = BAND + '_' + str(SEGMENT) + '_data'
 if sys.version_info[0] < 3:
     with open('../dat/' + file_name + '.dill', 'wb') as f:
         dill.dump(perf_assessment_data, f)
+    scipy.io.savemat('../dat/' + file_name + '.mat', mdict = {'perf_data': perf_assessment_data})
 else:
     with open('../dat/' + file_name + '_3.dill', 'wb') as f:
         dill.dump(perf_assessment_data, f)
+ 
