@@ -43,7 +43,7 @@ else:
     data_path = 'dat/' + file_name + '_3.dill'
 dataset = PitchContourDataset(data_path)
 dataloader = PitchContourDataloader(dataset, NUM_DATA_POINTS, NUM_BATCHES)
-batched_data = dataloader.create_batched_data()
+batched_data = dataloader.create_split_data(2000)
 
 # split batches into training, validation and testing
 training_data = batched_data[0:8]
@@ -69,7 +69,6 @@ def augment_data(data):
         new_data = {}
         new_data['pitch_tensor'] = pitch_tensor
         new_data['score_tensor'] = data[batch_idx]['score_tensor'].clone()
-        new_data['class_tensor'] = data[batch_idx]['class_tensor'].clone()
         aug_data[batch_idx] = new_data
     # combine with orignal data
     aug_data = aug_data + data

@@ -2,6 +2,7 @@ import os
 import sys
 import collections
 import numpy as np
+from random import shuffle
 import torch
 from torch.utils.data import Dataset, DataLoader
 import torch.multiprocessing as multiprocessing
@@ -81,7 +82,52 @@ class PitchContourDataloader(DataLoader):
             data['score_tensor'] = score_tensor
             data['class_tensor'] = class_score_tensor
             batched_data[batch_num] = data
+        print(count)
         return batched_data
+
+    def create_split_data(self, chunk_len):
+        """
+        Returns batched data which is split into chunks
+        Args:
+            chunk_len:  legnth of the chunk in samples
+        """
+        split_data = []
+        for i in range(self.num_data_pts):
+            data = self.dataset.__getitem__(i)
+            pc = data['pitch_contour']
+            gt = data['ratings']
+            count = 0     
+            while count + chunk_len < len(pc):
+                d = {}
+                d['pitch_contour'] = pc[count: count+chunk_len]
+                d['ratings'] = gt
+                split_data.append(d)
+                count += chunk_len
+
+        shuffle(split_data)
+        num_data_pts = len(split_data)
+        batched_data = [None] * self.num_batches
+        mini_batch_size = int(np.floor(num_data_pts / self.num_batches))
+        count = 0
+        for batch_num in range(self.num_batches):
+            batched_data[batch_num] = list()
+            pitch_tensor = torch.zeros(mini_batch_size, chunk_len)
+            score_tensor = torch.zeros(mini_batch_size, len(split_data[count]['ratings']))
+            for seq_num in range(self.mini_batch_size):
+                # convert pitch contour to torch tensor
+                pc_tensor = torch.from_numpy(split_data[count]['pitch_contour'])
+                pitch_tensor[seq_num, :] = pc_tensor.float()
+                # convert score tuple to torch tensor
+                s_tensor = torch.from_numpy(np.asarray(split_data[count]['ratings']))
+                score_tensor[seq_num, :] = s_tensor
+                count += 1
+            dummy = {}
+            dummy['pitch_tensor'] = pitch_tensor
+            dummy['score_tensor'] = score_tensor
+            batched_data[batch_num] = dummy 
+        print(mini_batch_size)
+        return batched_data
+
 
 class ZeroPad(object):
     """
