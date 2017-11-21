@@ -16,13 +16,13 @@ class PitchContourAssessor(nn.Module):
         """
         super(PitchContourAssessor, self).__init__()
         # initialize interal parameters
-        self.kernel_size = 15
-        self.stride = 9
-        self.hidden_size = 16
+        self.kernel_size = 9
+        self.stride = 5
+        self.hidden_size = 32
         self.n_layers = 1
         self.n0_features = 6
         self.n1_features = 16
-        #self.n2_features = 16
+        #self.n2_features = 32
         #self.n3_features = 32
         #self.n4_features = 64
         #self.n5_features = 128

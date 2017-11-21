@@ -10,7 +10,7 @@ from dataLoaders.PitchContourDataset import PitchContourDataset
 
 # set manual random seed for reproducibility
 torch.manual_seed(1)
-
+np.random.seed(1)
 class PitchContourDataloader(DataLoader):
     """
 	Dataloader class for pitch contour music performance assessment data
@@ -85,48 +85,125 @@ class PitchContourDataloader(DataLoader):
         print(count)
         return batched_data
 
-    def create_split_data(self, chunk_len):
+    def create_split_data(self, chunk_len, hop):
         """
         Returns batched data which is split into chunks
         Args:
             chunk_len:  legnth of the chunk in samples
+            hop:	hop length in samples
         """
-        split_data = []
-        for i in range(self.num_data_pts):
-            data = self.dataset.__getitem__(i)
+        indices = np.arange(self.num_data_pts)
+        np.random.shuffle(indices)
+        num_training_songs = int(0.8 * self.num_data_pts)
+        num_validation_songs = int(0.1 * self.num_data_pts)
+        num_testing_songs = num_validation_songs
+        train_split = []
+        for i in range(num_training_songs):
+            data = self.dataset.__getitem__(indices[i])
             pc = data['pitch_contour']
             gt = data['ratings']
-            count = 0     
+            count = 0
+            if len(pc) < chunk_len:
+                zeropad_pc = np.zeros((chunk_len,))
+                zeropad_pc[:pc.shape[0],] = pc
+                pc = zeropad_pc 
             while count + chunk_len < len(pc):
                 d = {}
                 d['pitch_contour'] = pc[count: count+chunk_len]
                 d['ratings'] = gt
-                split_data.append(d)
-                count += chunk_len
-
-        shuffle(split_data)
-        num_data_pts = len(split_data)
+                train_split.append(d)
+                count += hop
+        shuffle(train_split)
+        num_data_pts = len(train_split)
         batched_data = [None] * self.num_batches
         mini_batch_size = int(np.floor(num_data_pts / self.num_batches))
         count = 0
         for batch_num in range(self.num_batches):
             batched_data[batch_num] = list()
             pitch_tensor = torch.zeros(mini_batch_size, chunk_len)
-            score_tensor = torch.zeros(mini_batch_size, len(split_data[count]['ratings']))
-            for seq_num in range(self.mini_batch_size):
+            score_tensor = torch.zeros(mini_batch_size, len(train_split[count]['ratings']))
+            for seq_num in range(mini_batch_size):
                 # convert pitch contour to torch tensor
-                pc_tensor = torch.from_numpy(split_data[count]['pitch_contour'])
+                pc_tensor = torch.from_numpy(train_split[count]['pitch_contour'])
                 pitch_tensor[seq_num, :] = pc_tensor.float()
                 # convert score tuple to torch tensor
-                s_tensor = torch.from_numpy(np.asarray(split_data[count]['ratings']))
+                s_tensor = torch.from_numpy(np.asarray(train_split[count]['ratings']))
                 score_tensor[seq_num, :] = s_tensor
                 count += 1
             dummy = {}
             dummy['pitch_tensor'] = pitch_tensor
             dummy['score_tensor'] = score_tensor
             batched_data[batch_num] = dummy 
-        print(mini_batch_size)
-        return batched_data
+        
+        val_split = []
+        for i in range(num_training_songs, num_training_songs + num_validation_songs):
+            data = self.dataset.__getitem__(indices[i])
+            pc = data['pitch_contour']
+            gt = data['ratings']
+            count = 0
+            if len(pc) < chunk_len:
+                zeropad_pc = np.zeros((chunk_len,))
+                zeropad_pc[:pc.shape[0],] = pc
+                pc = zeropad_pc
+            while count + chunk_len < len(pc):
+                d = {}
+                d['pitch_contour'] = pc[count: count+chunk_len]
+                d['ratings'] = gt
+                val_split.append(d)
+                count += hop
+        shuffle(val_split)
+        num_data_pts = len(val_split)
+        mini_batch_size = num_data_pts
+        count = 0
+        pitch_tensor = torch.zeros(mini_batch_size, chunk_len)
+        score_tensor = torch.zeros(mini_batch_size, len(val_split[count]['ratings']))
+        for seq_num in range(mini_batch_size):
+            # convert pitch contour to torch tensor
+            pc_tensor = torch.from_numpy(val_split[count]['pitch_contour'])
+            pitch_tensor[seq_num, :] = pc_tensor.float()
+            # convert score tuple to torch tensor
+            s_tensor = torch.from_numpy(np.asarray(val_split[count]['ratings']))
+            score_tensor[seq_num, :] = s_tensor
+            count += 1
+        dummy = {}
+        dummy['pitch_tensor'] = pitch_tensor
+        dummy['score_tensor'] = score_tensor
+        val_batch = [dummy]
+        
+        test_split = []
+        for i in range(num_training_songs + num_validation_songs, num_training_songs + num_validation_songs + num_testing_songs):
+            data = self.dataset.__getitem__(indices[i])
+            pc = data['pitch_contour']
+            gt = data['ratings']
+            count = 0
+            if len(pc) < chunk_len:
+                zeropad_pc = np.zeros((chunk_len,))
+                zeropad_pc[:pc.shape[0],] = pc
+                pc = zeropad_pc
+            while count + chunk_len < len(pc):
+                d = {}
+                d['pitch_contour'] = pc[count: count+chunk_len]
+                d['ratings'] = gt
+                test_split.append(d)
+                count += hop
+        num_data_pts = len(test_split)
+        mini_batch_size = num_data_pts
+        count = 0
+        pitch_tensor = torch.zeros(mini_batch_size, chunk_len)
+        score_tensor = torch.zeros(mini_batch_size, len(test_split[count]['ratings']))
+        for seq_num in range(mini_batch_size):
+            # convert pitch contour to torch tensor
+            pc_tensor = torch.from_numpy(test_split[count]['pitch_contour'])
+            pitch_tensor[seq_num, :] = pc_tensor.float()
+            # convert score tuple to torch tensor
+            s_tensor = torch.from_numpy(np.asarray(test_split[count]['ratings']))
+            score_tensor[seq_num, :] = s_tensor
+            count += 1
+        dummy = {}
+        dummy['pitch_tensor'] = pitch_tensor
+        dummy['score_tensor'] = score_tensor
+        test_batch = [dummy]           
+        return batched_data, val_batch, test_batch
 
 
 class ZeroPad(object):
