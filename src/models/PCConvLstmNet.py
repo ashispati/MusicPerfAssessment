@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 
 
-class PitchContourAssessor(nn.Module):
+class PCConvLstmNet(nn.Module):
     """
     Class to implement a deep neural model for music performance assessment using
 	 pitch contours as input
@@ -14,7 +14,7 @@ class PitchContourAssessor(nn.Module):
         """
         Initializes the PitchContourAssessor class with internal parameters for the different layers
         """
-        super(PitchContourAssessor, self).__init__()
+        super(PCConvLstmNet, self).__init__()
         # initialize interal parameters
         self.kernel_size = 9
         self.stride = 5

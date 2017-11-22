@@ -11,7 +11,7 @@ import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from models.PCConvLstmNet import PCConvLstmNet
+from models.PCConvNet import PCConvNet
 from dataLoaders.PitchContourDataset import PitchContourDataset
 from dataLoaders.PitchContourDataloader import PitchContourDataloader
 from tensorboard_logger import configure, log_value
@@ -43,12 +43,10 @@ else:
     data_path = 'dat/' + file_name + '_3.dill'
 dataset = PitchContourDataset(data_path)
 dataloader = PitchContourDataloader(dataset, NUM_DATA_POINTS, NUM_BATCHES)
-tr1, v1, te1 = dataloader.create_split_data(4000, 4000)
-tr2, v2, te2 = dataloader.create_split_data(2000, 4000)
-tr3, v3, te3 = dataloader.create_split_data(8000, 4000)
-training_data = tr1 + tr2 + tr3
-validation_data = v1 + v2 + v3
-testing_data = te1 + te2 + te3
+tr1, v1, te1 = dataloader.create_split_data(1000, 500)
+training_data = tr1
+validation_data = v1
+testing_data = te1
 
 # split batches into training, validation and testing
 #training_data = batched_data[0:8]
@@ -88,7 +86,7 @@ full_length_data = dataloader.create_batched_data()
 full_testing_data = full_length_data[9:10]
 
 ## initialize model
-perf_model = PCConvLstmNet()
+perf_model = PCConvNet()
 if CUDA_AVAILABLE:
     perf_model.cuda()
 criterion = nn.MSELoss()
@@ -165,7 +163,7 @@ def eval_model(model, data, metric):
         model_target = Variable(model_target)
         # compute forward pass for the network
         mini_batch_size = model_input.size(0)
-        model.init_hidden(mini_batch_size)
+        #model.init_hidden(mini_batch_size)
         model_output = model(model_input)
         # compute loss
         loss = criterion(model_output, model_target)
@@ -214,7 +212,7 @@ def train(model, criterion, optimizer, data, metric):
         model_target = Variable(model_target)
         # compute forward pass for the network
         mini_batch_size = model_input.size(0)
-        model.init_hidden(mini_batch_size)
+        #model.init_hidden(mini_batch_size)
         model_output = model(model_input)
 
         # compute loss
