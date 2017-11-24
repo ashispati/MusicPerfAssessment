@@ -18,15 +18,17 @@ class DataUtils(object):
     Class containing helper functions to read the music performance data from the FBA folder
     """
 
-    def __init__(self, path_to_annotations, band, instrument):
+    def __init__(self, path_to_annotations, path_to_audio, band, instrument):
         """
         Initialized the data utils class
         Arg:
                 path_to_annotations:	string, full path to the folder containing the FBA annotations
+                path_to_audio:          string, full path to the folder containing the FBA audio
                 band:					string, which band type
                 instrument:				string, which instrument
         """
         self.path_to_annotations = path_to_annotations
+        self.path_to_audio = path_to_audio
         self.band = band
         self.instrument = instrument
         self.bad_ids = bad_ids[band]
@@ -48,6 +50,37 @@ class DataUtils(object):
         xls_path = 'FBA' + year + '/'
         xls_file_path = self.path_to_annotations + xls_path + file_name + '.xlsx'
         return xls_file_path
+
+    def get_audio_folder_path(self, year):
+        """
+        Returns the full path to the root folder containing all the FBA audio files
+        Arg:
+                year:   string, which year
+        """
+        if self.band == 'middle':
+            folder_name_band = 'middleschool'
+        elif self.band == 'concert':
+            folder_name_band = 'concertband'
+        elif self.band == 'symphonic':
+            folder_name_band = 'symphonicband'
+        else:
+            raise ValueError("Invalid value for 'band'")
+        
+        if year == '2013':
+            folder_name_year = '2013-2014'
+        elif year == '2014':
+            folder_name_year = '2014-2015'
+        elif year == '2015':
+            folder_name_year = '2015-2016'
+        else:
+            raise ValueError("Invalid value for 'year'")
+        
+        audio_folder = self.path_to_audio + folder_name_year + '/' + folder_name_band
+        if year == '2013':
+            audio_folder += 'scores/'
+        else:
+            audio_folder += '/'
+        return audio_folder
 
     def get_anno_folder_path(self, year):
         """
@@ -125,7 +158,7 @@ class DataUtils(object):
             segment_data.append((to_floats[0], to_floats[0] + to_floats[1]))
         return segment_data
 
-    def get_pitch_contours_segment(self, year, segment, student_ids=[]):
+    def get_pitch_contours_segment(self, year, segment_info, student_ids=[]):
         """
         Returns the pitch contours for the provide inputs as a list of np arrays
                 assumes pyin pitch contours have already been computed and stored as text files
@@ -138,7 +171,6 @@ class DataUtils(object):
         data_folder = self.get_anno_folder_path(year)
         if student_ids == []:
             student_ids = self.scan_student_ids(year)
-        segment_info = self.get_segment_info(year, segment, student_ids)
         pitch_contour_data = []
         idx = 0
         for student_id in student_ids:
@@ -168,6 +200,25 @@ class DataUtils(object):
             pitch_contour_data.append(pitch_contour)
 
         return pitch_contour_data
+
+    def get_audio_file_path(self, year, student_ids=[]):
+        """
+        Returns the audio paths for the provide inputs as a list of strings
+        Args:
+                year:           string, which year
+                student_ids:    list, containing the student ids., if empty we compute it within this
+                                 function
+        """
+        data_folder = self.get_audio_folder_path(year)
+        if student_ids == []:
+            student_ids = self.scan_student_ids(year)
+        audio_file_paths = []
+        for student_id in student_ids:
+            audio_file_path = data_folder + \
+                str(student_id) + '/' + str(student_id) + '.mp3'
+            audio_file_paths.append(audio_file_path)
+
+        return audio_file_paths
 
     def get_perf_rating_segment(self, year, segment, student_ids=[]):
         """
@@ -209,8 +260,11 @@ class DataUtils(object):
         """
         perf_assessment_data = []
         student_ids = self.scan_student_ids(year)
-        pitch_contour_data = self.get_pitch_contours_segment(year, segment, student_ids)
+        segment_info = self.get_segment_info(year, segment, student_ids)
+        pitch_contour_data = self.get_pitch_contours_segment(year, segment_info, student_ids)
+        audio_file_paths = self.get_audio_file_path(year, student_ids)
         ground_truth = self.get_perf_rating_segment(year, segment, student_ids)
+        idx = 0
         for student_idx in range(len(student_ids)):
             assessment_data = {}
             assessment_data['year'] = year
@@ -219,7 +273,11 @@ class DataUtils(object):
             assessment_data['student_id'] = student_ids[student_idx]
             assessment_data['segment'] = segment
             assessment_data['pitch_contour'] = pitch_contour_data[student_idx]
+            assessment_data['start_time'] = segment_info[idx][0]
+            assessment_data['end_time'] = segment_info[idx][1]
+            assessment_data['audio_file_path'] = audio_file_paths[student_idx]
             assessment_data['ratings'] = ground_truth[student_idx]
             assessment_data['class_ratings'] = [round(x * 10) for x in ground_truth[student_idx]]
             perf_assessment_data.append(assessment_data)
+            idx += 1
         return perf_assessment_data
