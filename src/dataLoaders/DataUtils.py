@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from pandas import ExcelFile
 
-# define bad students ids 
+# define bad students ids
 # for which recording is bad or segment annotation doesn't exist
 bad_ids = {}
 bad_ids['middle'] = [29429, 32951, 42996, 43261, 44627, 56948, 39299, 39421, 41333, 42462, 43811, 44319, 61218, 29266, 33163]
@@ -250,7 +250,7 @@ class DataUtils(object):
                 (to_floats[2], to_floats[3], to_floats[4], to_floats[5]))
 
         return perf_ratings
-    
+
     def create_data(self, year, segment):
         """
         Creates the data representation for a particular year

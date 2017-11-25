@@ -25,9 +25,9 @@ class PCConvNet(nn.Module):
         self.conv0 = nn.Conv1d(1, self.n0_features, 7, 3) # output is (1000 - 7)/3 + 1 = 332
         self.conv0_bn = nn.BatchNorm1d(self.n0_features)
         self.conv1 = nn.Conv1d(self.n0_features, self.n1_features, self.kernel_size, self.stride) # output is (332 - 7)/3 + 1 = 76
-        self.conv1_bn = nn.BatchNorm1d(self.n1_features) 
+        self.conv1_bn = nn.BatchNorm1d(self.n1_features)
         self.conv2 = nn.Conv1d(self.n1_features, self.n2_features, self.kernel_size, self.stride) # output is (76 - 7)/3 + 1 = 24
-        self.conv2_bn = nn.BatchNorm1d(self.n2_features) 
+        self.conv2_bn = nn.BatchNorm1d(self.n2_features)
         self.conv3 = nn.Conv1d(self.n2_features, 1, 24, 1)
 
 
