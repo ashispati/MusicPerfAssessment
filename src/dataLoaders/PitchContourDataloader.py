@@ -136,11 +136,16 @@ class PitchContourDataloader(DataLoader):
             batched_data[batch_num] = dummy 
         
         val_split = []
+        val_batch_full = []
         for i in range(num_training_songs, num_training_songs + num_validation_songs):
             data = self.dataset.__getitem__(indices[i])
             pc = data['pitch_contour']
             gt = data['ratings']
             count = 0
+            d = {}
+            d['pitch_tensor'] = torch.from_numpy(pc).float().view(1,-1)
+            d['score_tensor'] = torch.from_numpy(np.asarray(gt)).float().view(1,-1)
+            val_batch_full.append(d)
             if len(pc) < chunk_len:
                 zeropad_pc = np.zeros((chunk_len,))
                 zeropad_pc[:pc.shape[0],] = pc
@@ -171,11 +176,16 @@ class PitchContourDataloader(DataLoader):
         val_batch = [dummy]
         
         test_split = []
+        test_batch_full = []
         for i in range(num_training_songs + num_validation_songs, num_training_songs + num_validation_songs + num_testing_songs):
             data = self.dataset.__getitem__(indices[i])
             pc = data['pitch_contour']
             gt = data['ratings']
             count = 0
+            d = {}
+            d['pitch_tensor'] = torch.from_numpy(pc).float().view(1,-1)
+            d['score_tensor'] = torch.from_numpy(np.asarray(gt)).float().view(1,-1)
+            test_batch_full.append(d)
             if len(pc) < chunk_len:
                 zeropad_pc = np.zeros((chunk_len,))
                 zeropad_pc[:pc.shape[0],] = pc
@@ -203,7 +213,7 @@ class PitchContourDataloader(DataLoader):
         dummy['pitch_tensor'] = pitch_tensor
         dummy['score_tensor'] = score_tensor
         test_batch = [dummy]           
-        return batched_data, val_batch, test_batch
+        return batched_data, val_batch, val_batch_full, test_batch, test_batch_full
 
 
 class ZeroPad(object):

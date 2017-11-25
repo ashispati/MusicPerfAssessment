@@ -28,8 +28,8 @@ if CUDA_AVAILABLE != True:
     import matplotlib.image as mpimg
 
 # initializa training parameters
-NUM_EPOCHS = 100
-NUM_DATA_POINTS = 200
+NUM_EPOCHS = 10000
+NUM_DATA_POINTS = 1400
 NUM_BATCHES = 10
 BAND = 'middle'
 SEGMENT = '2'
@@ -43,10 +43,15 @@ else:
     data_path = 'dat/' + file_name + '_3.dill'
 dataset = PitchContourDataset(data_path)
 dataloader = PitchContourDataloader(dataset, NUM_DATA_POINTS, NUM_BATCHES)
-tr1, v1, te1 = dataloader.create_split_data(1000, 500)
-training_data = tr1
-validation_data = v1
-testing_data = te1
+tr1, v1, _, te1, _ = dataloader.create_split_data(500, 250)
+tr2, v2, _, te2, _ = dataloader.create_split_data(1500, 500)
+tr3, v3, _, te3, _ = dataloader.create_split_data(2000, 1000)
+tr4, v4, _, te4, _ = dataloader.create_split_data(2500, 1000)
+tr5, v5, _, te5, _ = dataloader.create_split_data(3000, 1500)
+tr6, v6, vef, te6, tef = dataloader.create_split_data(4000, 2000)
+training_data = tr1 #+ tr2 + tr3 + tr4 + tr5 + tr6
+validation_data = vef #+ v2 + v3 + v4 + v5 + v6
+testing_data = te1 #+ te2 + te3 + te4 + te5 + te6
 
 # split batches into training, validation and testing
 #training_data = batched_data[0:8]
@@ -77,22 +82,22 @@ def augment_data(data):
     aug_data = data + aug_data
     return aug_data
 
-aug_training_data = augment_data(training_data)
-aug_training_data = augment_data(aug_training_data)
-aug_validation_data = validation_data#augment_data(validation_data)
+aug_training_data = training_data #augment_data(training_data)
+#aug_training_data = augment_data(aug_training_data)
+aug_validation_data = validation_data #augment_data(validation_data)
 
 # create full-length dataset for testing
-full_length_data = dataloader.create_batched_data()
-full_testing_data = full_length_data[9:10]
+#full_length_data = dataloader.create_batched_data()
+full_testing_data = tef
 
 ## initialize model
-perf_model = PCConvNet()
+perf_model = PCConvNet(1)
 if CUDA_AVAILABLE:
     perf_model.cuda()
 criterion = nn.MSELoss()
-LR_RATE = 0.01
-W_DECAY = 1e-5
-MOMENTUM = 0.9
+LR_RATE = .01
+W_DECAY = 1e-8
+MOMENTUM = 0.7
 perf_optimizer = optim.SGD(perf_model.parameters(), lr= LR_RATE, momentum=MOMENTUM, weight_decay=W_DECAY)
 print(perf_model)
 
@@ -113,7 +118,6 @@ def eval_regression(target, pred):
     
     # compute r-sq score 
     r_sq = metrics.r2_score(target_np, pred_np)
-    #print(pred_np)
     # compute 11-class classification accuracy
     pred_class = np.rint(pred_np * 10)
     pred_class[pred_class < 0] = 0
