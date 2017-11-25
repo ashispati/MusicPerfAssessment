@@ -251,13 +251,15 @@ class DataUtils(object):
 
         return perf_ratings
     
-    def create_data(self, year, segment):
+    def create_data(self, year, segment, audio=False):
         """
         Creates the data representation for a particular year
         Args:
                 year:           string, which year
                 segment:		string, which segment
         """
+        if audio:
+            import librosa
         perf_assessment_data = []
         student_ids = self.scan_student_ids(year)
         segment_info = self.get_segment_info(year, segment, student_ids)
@@ -272,10 +274,11 @@ class DataUtils(object):
             assessment_data['instrumemt'] = self.instrument
             assessment_data['student_id'] = student_ids[student_idx]
             assessment_data['segment'] = segment
-            assessment_data['pitch_contour'] = pitch_contour_data[student_idx]
-            assessment_data['start_time'] = segment_info[idx][0]
-            assessment_data['end_time'] = segment_info[idx][1]
-            assessment_data['audio_file_path'] = audio_file_paths[student_idx]
+            if audio == False:
+                assessment_data['pitch_contour'] = pitch_contour_data[student_idx]
+            else:
+                y,sr = librosa.load(audio_file_paths[student_idx], offset=segment_info[idx][0], duration=segment_info[idx][1] - segment_info[idx][0])
+                assessment_data['audio'] = (y,sr)
             assessment_data['ratings'] = ground_truth[student_idx]
             assessment_data['class_ratings'] = [round(x * 10) for x in ground_truth[student_idx]]
             perf_assessment_data.append(assessment_data)

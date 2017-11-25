@@ -27,17 +27,17 @@ perf_assessment_data = []
 INSTRUMENT = 'Alto Saxophone'
 utils = DataUtils(PATH_FBA_ANNO, PATH_FBA_AUDIO, BAND, INSTRUMENT)
 for year in YEAR:
-    perf_assessment_data += utils.create_data(year, SEGMENT)
+    perf_assessment_data += utils.create_data(year, SEGMENT, audio=True)
 
 INSTRUMENT = 'Bb Clarinet'
 utils = DataUtils(PATH_FBA_ANNO, PATH_FBA_AUDIO, BAND, INSTRUMENT)
 for year in YEAR:
-    perf_assessment_data += utils.create_data(year, SEGMENT)
+    perf_assessment_data += utils.create_data(year, SEGMENT, audio=True)
 
 INSTRUMENT = 'Flute'
 utils = DataUtils(PATH_FBA_ANNO, PATH_FBA_AUDIO, BAND, INSTRUMENT)
 for year in YEAR:
-    perf_assessment_data += utils.create_data(year, SEGMENT)
+    perf_assessment_data += utils.create_data(year, SEGMENT, audio=True)
 
 print(len(perf_assessment_data))
 
