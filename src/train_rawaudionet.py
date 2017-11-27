@@ -1,21 +1,23 @@
 from __future__ import print_function
+import argparse
 import gc
-import os
-import sys
 import math
-import time
-import scipy.stats as ss
 import numpy as np
+import os
+import os.path as op
+import scipy.stats as ss
+import sys
+import time
 import torch
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
-from models.PCConvNet import PCConvNet
-from dataLoaders.PitchContourDataset import PitchContourDataset
-from dataLoaders.PitchContourDataloader import PitchContourDataloader
-from tensorboard_logger import configure, log_value
+from dataLoaders.RawAudioDataset import RawAudioDataset
+from dataLoaders.RawAudioDataLoader import RawAudioDataLoader
+from models.RawAudioNet import RawAudioNet
 from sklearn import metrics
+from tensorboard_logger import configure, log_value
+from torch.autograd import Variable
 
 # set manual random seed for reproducibility
 torch.manual_seed(1)
@@ -28,73 +30,69 @@ if CUDA_AVAILABLE != True:
     import matplotlib.image as mpimg
 
 # initializa training parameters
-NUM_EPOCHS = 100
-NUM_DATA_POINTS = 200
-NUM_BATCHES = 10
-BAND = 'middle'
-SEGMENT = '2'
-METRIC = 0 # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
+parser = argparse.ArgumentParser()
+parser.add_argument('-e', '--epochs', default=100, type=int,
+                    help="number of training epochs.")
+parser.add_argument('-nd', '--data_points', default=200, type=int,
+                    help="number of data points.")
+parser.add_argument('-nb', '--num_batches', default=10, type=int,
+                    help="number of batches to use in training.")
+parser.add_argument('-b', '--band', default="middle",
+                    help="frequency (band) of data to use.")
+parser.add_argument('-s', '--segment', default="2",
+                    help="I have no idea what this is tbh.")
+parser.add_argument('-lr', '--learning_rate', default=1e-2, type=float,
+                    help="learning rate for sgd.")
+parser.add_argument('-wd', '--weight_decay', default=1e-5, type=float,
+                    help="weight decay parameter for sgd.")
+parser.add_argument('-m', '--momentum', default=0.9, type=float,
+                    help="learning rate for sgd.")
+parser.add_argument('-mt', '--metric', default=0, type=int, choices=set((0, 1, 2, 3)),
+                    help=("the metric by which to judge a data point. "
+                          "0: musicality, 1: note accuracy, "
+                          "2: rhythmic accuracy, 3: tone quality"))
+args = parser.parse_args()
 
-# initialize dataset, dataloader and created batched data
-file_name = BAND + '_' + str(SEGMENT) + '_data'
-if sys.version_info[0] < 3:
-    data_path = 'dat/' + file_name + '.dill'
-else:
-    data_path = 'dat/' + file_name + '_3.dill'
-print(data_path)
-dataset = PitchContourDataset(data_path)
-dataloader = PitchContourDataloader(dataset, NUM_DATA_POINTS, NUM_BATCHES)
-tr1, v1, te1 = dataloader.create_split_data(1000, 500)
-training_data = tr1
-validation_data = v1
-testing_data = te1
+NUM_EPOCHS = args.epochs
+NUM_DATA_POINTS = args.data_points
+NUM_BATCHES = args.num_batches
+BAND = args.band
+SEGMENT = args.segment
+L_RATE = args.learning_rate
+W_DECAY = args.weight_decay
+MOMENTUM = args.momentum
+METRIC = args.metric # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
+
+train_dataset = RawAudioDataset(op.join('dat', 'train.npy'))
+train_dataloader = RawAudioDataLoader(train_dataset, NUM_DATA_POINTS, NUM_BATCHES)
+
+valid_dataset = RawAudioDataset(op.join('dat', 'valid.npy'))
+valid_dataloader = RawAudioDataLoader(valid_dataset)
+
+test_dataset = RawAudioDataset(op.join('dat', 'test.npy'))
+test_dataloader = RawAudioDataLoader(test_dataset)
+
+# tr1, v1, te1 = dataloader.create_split_data(1000, 500)
+# training_data = tr1
+# validation_data = v1
+# testing_data = te1
 
 # split batches into training, validation and testing
 #training_data = batched_data[0:8]
-#validation_data = batched_data[8:9] 
+#validation_data = batched_data[8:9]
 #testing_data = batched_data[9:10]
 
-# augment data
-def augment_data(data):
-    """
-    Augments the data using pitch shifting
-    Args:
-        data: batched data
-    """
-    num_batches = len(data)
-    aug_data = [None] * num_batches
-    # create augmented data
-    for batch_idx in range(num_batches):
-        mini_batch_size, seq_len = data[batch_idx]['pitch_tensor'].size()
-        pitch_shift = ((torch.rand(mini_batch_size, 1) * 4) - 2) / 127.0
-        pitch_shift = pitch_shift.expand(mini_batch_size, seq_len)
-        pitch_tensor = data[batch_idx]['pitch_tensor'].clone()
-        pitch_tensor[pitch_tensor != 0] = pitch_tensor[pitch_tensor != 0] + pitch_shift[pitch_tensor != 0]
-        new_data = {}
-        new_data['pitch_tensor'] = pitch_tensor
-        new_data['score_tensor'] = data[batch_idx]['score_tensor'].clone()
-        aug_data[batch_idx] = new_data
-    # combine with orignal data
-    aug_data = data + aug_data
-    return aug_data
-
-aug_training_data = augment_data(training_data)
-aug_training_data = augment_data(aug_training_data)
-aug_validation_data = validation_data#augment_data(validation_data)
-
-# create full-length dataset for testing
-full_length_data = dataloader.create_batched_data()
-full_testing_data = full_length_data[9:10]
+# create batched data for all datasets
+train_data = train_dataloader.create_batched_data()
+valid_data = valid_dataloader.create_batched_data()
+test_data = test_dataloader.create_batched_data()
 
 ## initialize model
-perf_model = PCConvNet()
+perf_model = RawAudioNet()
 if CUDA_AVAILABLE:
     perf_model.cuda()
 criterion = nn.MSELoss()
-LR_RATE = 0.01
-W_DECAY = 1e-5
-MOMENTUM = 0.9
-perf_optimizer = optim.SGD(perf_model.parameters(), lr= LR_RATE, momentum=MOMENTUM, weight_decay=W_DECAY)
+perf_optimizer = optim.SGD(perf_model.parameters(), lr=L_RATE, momentum=MOMENTUM, weight_decay=W_DECAY)
 print(perf_model)
 
 # define evaluation method
@@ -136,7 +134,7 @@ def eval_model(model, data, metric):
     """
     Returns the model performance metrics
     Args:
-        model:          object, trained model of PitchContourAssessor class
+        model:          object, trained model of RawAudioAssessor class
         data:           list, batched testing data
         metric:         int, from 0 to 3, which metric to evaluate against
     """
@@ -150,11 +148,11 @@ def eval_model(model, data, metric):
     # iterate over batches for validation
     for batch_idx in range(num_batches):
         # extract pitch tensor and score for the batch
-        pitch_tensor = data[batch_idx]['pitch_tensor']
-        score_tensor = data[batch_idx]['score_tensor'][:, metric]
+        audio_tensor = data[batch_idx]['audio_tensor']
+        ratings_tensor = data[batch_idx]['ratings_tensor'][:, metric]
         # prepare data for input to model
-        model_input = pitch_tensor.clone()
-        model_target = score_tensor.clone()
+        model_input = audio_tensor.clone()
+        model_target = ratings_tensor.clone()
         # convert to cuda tensors if cuda available
         if CUDA_AVAILABLE:
             model_input = model_input.cuda()
@@ -171,7 +169,7 @@ def eval_model(model, data, metric):
         loss_avg += loss.data[0]
         # concatenate target and pred for computing validation metrics
         pred = torch.cat((pred, model_output.data.view(-1)), 0) if pred.size else model_output.data.view(-1)
-        target = torch.cat((target, score_tensor), 0) if target.size else score_tensor
+        target = torch.cat((target, ratings_tensor), 0) if target.size else ratings_tensor
     r_sq, accu, accu2 = eval_regression(target, pred)
     loss_avg /= num_batches
     return loss_avg, r_sq, accu, accu2
@@ -180,14 +178,14 @@ def train(model, criterion, optimizer, data, metric):
     """
     Returns the model performance metrics
     Args:
-        model:          object, trained model of PitchContourAssessor class
+        model:          object, trained model of RawAudioAssessor class
         criterion:      object, of torch.nn.Functional class which defines the loss 
         optimizer:      object, of torch.optim class which defines the optimization algorithm
         data:           list, batched testing data
         metric:         int, from 0 to 3, which metric to evaluate against
     """
     # Put the model in training mode
-    model.train() 
+    model.train()
     # Initializations
     num_batches = len(data)
     loss_avg = 0
@@ -197,13 +195,13 @@ def train(model, criterion, optimizer, data, metric):
         model.zero_grad()
         loss = 0
 
-        # extract pitch tensor and score for the batch
-        pitch_tensor = data[batch_idx]['pitch_tensor']
-        score_tensor = data[batch_idx]['score_tensor'][:, metric]
-        
+        # extract audio tensor and score for the batch
+        audio_tensor = data[batch_idx]['audio_tensor']
+        ratings_tensor = data[batch_idx]['ratings_tensor'][:, metric]
+
         # prepare data for input to model
-        model_input = pitch_tensor.clone()
-        model_target = score_tensor.clone()
+        model_input = audio_tensor.clone()
+        model_target = ratings_tensor.clone()
         # convert to cuda tensors if cuda available
         if CUDA_AVAILABLE:
             model_input = model_input.cuda()
@@ -231,7 +229,7 @@ def train_and_validate(model, criterion, optimizer, train_data, val_data, metric
     """
     Defines the training and validation cycle for the input batched data
     Args:
-        model:          object, trained model of PitchContourAssessor class
+        model:          object, trained model of RawAudioAssessor class
         criterion:      object, of torch.nn.Functional class which defines the loss 
         optimizer:      object, of torch.optim class which defines the optimization algorithm
         train_data:     list, batched training data
@@ -272,7 +270,7 @@ def adjust_learning_rate(optimizer, epoch, adjust_every):
     """
     Adjusts the learning rate of the optimizer based on the epoch
     Args:
-       optimizer:      object, of torch.optim class 
+       optimizer:      object, of torch.optim class
        epoch:          int, epoch number
        adjust_every:   int, number of epochs after which adjustment is to done
     """
@@ -294,7 +292,10 @@ try:
     print("Training for %d epochs..." % NUM_EPOCHS)
     for epoch in range(1, NUM_EPOCHS + 1):
         # perform training and validation
-        train_loss, train_r_sq, train_accu, train_accu2, val_loss, val_r_sq, val_accu, val_accu2 = train_and_validate(perf_model, criterion, perf_optimizer, aug_training_data, aug_validation_data, METRIC)
+        (train_loss, train_r_sq, train_accu, train_accu2, val_loss,
+         val_r_sq, val_accu, val_accu2) = train_and_validate(perf_model, criterion,
+                                                             perf_optimizer, train_data,
+                                                             valid_data, METRIC)
         # adjut learning rate
         adjust_learning_rate(perf_optimizer, epoch, ADJUST_EVERY)
         # log data for visualization later
@@ -318,7 +319,7 @@ except KeyboardInterrupt:
     print("Saving before quit...")
     save(file_info)
 
-# test on testing data 
+# test on testing data
 test_loss, test_r_sq, test_accu, test_accu2 = eval_model(perf_model, testing_data, METRIC)
 print('[%s %0.5f, %s %0.5f, %s %0.5f %0.5f]'% ('Testing Loss: ', test_loss, ' R-sq: ', test_r_sq, ' Accu:', test_accu, test_accu2))
 

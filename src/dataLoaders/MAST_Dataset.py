@@ -11,10 +11,10 @@ class MAST_Dataset(Dataset):
         self.data = [(a,1) for a in all_f0s if 'pass' in a] # 266 samples
         self.data.extend([(a,0) for a in all_f0s if 'fail' in a]) # 730 samples
         self.f0_path = f0_path
-    
+
     def __len__(self):
         return len(self.data)
-        
+
     def __getitem__(self, index):
         file, target = self.data[index]
         f0 = np.loadtxt(os.path.join(self.f0_path, file))[:,1]
