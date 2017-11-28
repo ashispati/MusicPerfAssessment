@@ -60,6 +60,7 @@ class PitchContourDataset(Dataset):
         a4 = 440.0
         pitch_contour[pitch_contour != 0] = 69 + 12 * \
             np.log2(pitch_contour[pitch_contour != 0] / a4)
-        # normalize pitch
-        normalized_pitch = pitch_contour / 127.0
+        # normalize pitch (restrict between 36 to 108 MIDI notes)
+        normalized_pitch = pitch_contour #/ 127.0
+        normalized_pitch[normalized_pitch != 0] = (normalized_pitch[normalized_pitch != 0] - 36.0)/72.0 
         return normalized_pitch

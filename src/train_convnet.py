@@ -19,7 +19,7 @@ from sklearn import metrics
 
 # set manual random seed for reproducibility
 torch.manual_seed(1)
-
+np.random.seed(1)
 # check is cuda is available and print result
 CUDA_AVAILABLE = torch.cuda.is_available()
 print('Running on GPU: ', CUDA_AVAILABLE)
@@ -28,13 +28,13 @@ if CUDA_AVAILABLE != True:
     import matplotlib.image as mpimg
 
 # initializa training parameters
-NUM_EPOCHS = 10000
-NUM_DATA_POINTS = 1400
+NUM_EPOCHS = 4000
+NUM_DATA_POINTS = 1410
 NUM_BATCHES = 10
 BAND = 'middle'
 SEGMENT = '2'
 METRIC = 0 # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
-
+RUN = 12
 # initialize dataset, dataloader and created batched data
 file_name = BAND + '_' + str(SEGMENT) + '_data'
 if sys.version_info[0] < 3:
@@ -43,15 +43,15 @@ else:
     data_path = 'dat/' + file_name + '_3.dill'
 dataset = PitchContourDataset(data_path)
 dataloader = PitchContourDataloader(dataset, NUM_DATA_POINTS, NUM_BATCHES)
-tr1, v1, _, te1, _ = dataloader.create_split_data(500, 250)
+tr1, v1, _, te1, _ = dataloader.create_split_data(1000, 500)
 tr2, v2, _, te2, _ = dataloader.create_split_data(1500, 500)
 tr3, v3, _, te3, _ = dataloader.create_split_data(2000, 1000)
 tr4, v4, _, te4, _ = dataloader.create_split_data(2500, 1000)
 tr5, v5, _, te5, _ = dataloader.create_split_data(3000, 1500)
 tr6, v6, vef, te6, tef = dataloader.create_split_data(4000, 2000)
-training_data = tr1 #+ tr2 + tr3 + tr4 + tr5 + tr6
+training_data = tr1 + tr2 + tr3 + tr4 + tr5 + tr6
 validation_data = vef #+ v2 + v3 + v4 + v5 + v6
-testing_data = te1 #+ te2 + te3 + te4 + te5 + te6
+testing_data = te1 + te2 + te3 + te4 + te5 + te6
 
 # split batches into training, validation and testing
 #training_data = batched_data[0:8]
@@ -91,13 +91,13 @@ aug_validation_data = validation_data #augment_data(validation_data)
 full_testing_data = tef
 
 ## initialize model
-perf_model = PCConvNet(1)
+perf_model = PCConvNet(0)
 if CUDA_AVAILABLE:
     perf_model.cuda()
 criterion = nn.MSELoss()
-LR_RATE = .01
-W_DECAY = 1e-8
-MOMENTUM = 0.7
+LR_RATE = 0.01
+W_DECAY = 1e-5
+MOMENTUM = 0.9
 perf_optimizer = optim.SGD(perf_model.parameters(), lr= LR_RATE, momentum=MOMENTUM, weight_decay=W_DECAY)
 print(perf_model)
 
@@ -116,7 +116,9 @@ def eval_regression(target, pred):
         pred_np = pred.clone().numpy()
         target_np = target.clone().numpy()
     
-    # compute r-sq score 
+    # compute r-sq score
+    pred_np[pred_np < 0] = 0
+    pred_np[pred_np > 1] = 1 
     r_sq = metrics.r2_score(target_np, pred_np)
     # compute 11-class classification accuracy
     pred_class = np.rint(pred_np * 10)
@@ -251,7 +253,7 @@ def train_and_validate(model, criterion, optimizer, train_data, val_data, metric
     return train_loss_avg, train_r_sq, train_accu, train_accu2, val_loss_avg, val_r_sq, val_accu, val_accu2
 
 
-file_info = str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS) + '_' + BAND + '_' + str(METRIC)
+file_info = str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS) + '_' + BAND + '_' + str(METRIC) + '_' + str(RUN) + '_Lstm'
 def save(filename):
     """
     Saves the saved model

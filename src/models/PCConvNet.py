@@ -69,19 +69,19 @@ class PCConvNet(nn.Module):
         mini_batch_size, sig_size = input.size()
         #print(input.size())
         # compute the output of the convolutional layers
-        conv0_out = F.relu(self.conv0_bn(self.conv0(input.view(mini_batch_size, 1, sig_size))))
+        conv0_out = F.leaky_relu(self.conv0_bn(self.conv0(input.view(mini_batch_size, 1, sig_size))))
         #print(conv0_out.size())
         #conv0_out = self.maxpool0(conv0_out)
         #print(conv0_out.size())
-        conv1_out = F.relu(self.conv1_bn(self.conv1(conv0_out)))
+        conv1_out = F.leaky_relu(self.conv1_bn(self.conv1(conv0_out)))
         #print(conv1_out.size())
         #conv1_out = self.maxpool1(conv1_out)
         #print(conv1_out.size())
-        conv2_out = F.relu(self.conv2_bn(self.conv2(conv1_out)))
+        conv2_out = F.leaky_relu(self.conv2_bn(self.conv2(conv1_out)))
         #print(conv2_out.size())
         #conv2_out = self.maxpool2(conv2_out)
         #print(conv2_out.size())
-        conv3_out = self.conv3_bn(self.conv3(conv2_out))
+        conv3_out = F.relu(self.conv3_bn(self.conv3(conv2_out)))
         #print(conv3_out.size())
 
         # compute final output

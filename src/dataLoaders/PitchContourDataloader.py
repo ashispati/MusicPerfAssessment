@@ -2,15 +2,13 @@ import os
 import sys
 import collections
 import numpy as np
+import random
 from random import shuffle
 import torch
 from torch.utils.data import Dataset, DataLoader
 import torch.multiprocessing as multiprocessing
 from dataLoaders.PitchContourDataset import PitchContourDataset
 
-# set manual random seed for reproducibility
-torch.manual_seed(1)
-np.random.seed(1)
 class PitchContourDataloader(DataLoader):
     """
 	Dataloader class for pitch contour music performance assessment data
@@ -25,13 +23,17 @@ class PitchContourDataloader(DataLoader):
                 num_batches:	int, number of batches to be considered
         """
         # check if input parameters are accurate
+        np.random.seed(1)
         assert num_data_pts <= dataset.__len__()
         assert num_batches <= num_data_pts
         self.dataset = dataset
         self.num_data_pts = num_data_pts
         self.num_batches = num_batches
+        self.indices = np.arange(self.num_data_pts)
+        np.random.shuffle(self.indices)
+        print(self.indices)
         self.mini_batch_size = int(np.floor(self.num_data_pts / self.num_batches))
-
+        
     def get_sorted_data(self):
         """
         Returns data points sorted in descending order of pitch contour length
@@ -92,8 +94,10 @@ class PitchContourDataloader(DataLoader):
             chunk_len:  legnth of the chunk in samples
             hop:	hop length in samples
         """
-        indices = np.arange(self.num_data_pts)
-        np.random.shuffle(indices)
+        random.seed(0)
+        indices = self.indices
+        print(indices)
+        #np.random.shuffle(indices)
         num_training_songs = int(0.8 * self.num_data_pts)
         num_validation_songs = int(0.1 * self.num_data_pts)
         num_testing_songs = num_validation_songs
@@ -101,6 +105,7 @@ class PitchContourDataloader(DataLoader):
         for i in range(num_training_songs):
             data = self.dataset.__getitem__(indices[i])
             pc = data['pitch_contour']
+            #print(data['student_id'])
             gt = data['ratings']
             count = 0
             if len(pc) < chunk_len:
@@ -140,6 +145,7 @@ class PitchContourDataloader(DataLoader):
         for i in range(num_training_songs, num_training_songs + num_validation_songs):
             data = self.dataset.__getitem__(indices[i])
             pc = data['pitch_contour']
+            #print(data['student_id'])
             gt = data['ratings']
             count = 0
             d = {}
@@ -180,6 +186,7 @@ class PitchContourDataloader(DataLoader):
         for i in range(num_training_songs + num_validation_songs, num_training_songs + num_validation_songs + num_testing_songs):
             data = self.dataset.__getitem__(indices[i])
             pc = data['pitch_contour']
+            #print(data['student_id'])
             gt = data['ratings']
             count = 0
             d = {}
