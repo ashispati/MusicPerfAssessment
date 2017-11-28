@@ -29,8 +29,8 @@ def eval_regression(target, pred):
     # compute r-sq score 
     pred_np[pred_np < 0] = 0
     pred_np[pred_np > 1] = 1
-    print(pred_np)
-    print(target_np)
+    #print(pred_np)
+    #print(target_np)
     a = np.absolute((pred_np - target_np))
     r_sq = metrics.r2_score(target_np, pred_np)
     # compute 11-class classification accuracy
@@ -49,14 +49,15 @@ def eval_regression(target, pred):
     accu2 = metrics.accuracy_score(target_class, pred_class, normalize=True)
     return r_sq, accu, accu2
 
-# define evaluation method
-def eval_model(model, data, metric):
+def eval_model(model, criterion, data, metric, mtype):
     """
     Returns the model performance metrics
     Args:
         model:          object, trained model of PitchContourAssessor class
+        criterion:      object, of torch.nn.Functional class which defines the loss 
         data:           list, batched testing data
         metric:         int, from 0 to 3, which metric to evaluate against
+        mtype:          string, 'conv' for fully convolutional model, 'lstm' for lstm based model
     """
     # put the model in eval mode
     model.eval()
@@ -82,10 +83,10 @@ def eval_model(model, data, metric):
         model_target = Variable(model_target)
         # compute forward pass for the network
         mini_batch_size = model_input.size(0)
-        #model.init_hidden(mini_batch_size)
+        if mtype == 'lstm':
+            model.init_hidden(mini_batch_size)
         model_output = model(model_input)
         # compute loss
-        criterion = nn.MSELoss()
         loss = criterion(model_output, model_target)
         loss_avg += loss.data[0]
         # concatenate target and pred for computing validation metrics
@@ -113,13 +114,11 @@ def compute_saliency_maps(X, y, model):
     
     # compute forward pass and class scores
     pred_scores = model.forward(X_var)
-    criterion = nn.MSELoss()
-    loss = criterion(pred_scores, y_var)
 
     # compute gradient wrt input
-    loss.backward()
+    pred_scores.sum().backward()
     saliency = X_var.grad
-    
-    saliency = torch.max(saliency, 1)[0].data
+
+    saliency = saliency.data
     return saliency
 

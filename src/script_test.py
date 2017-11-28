@@ -14,7 +14,7 @@ from models.PCConvNet import PCConvNet
 from dataLoaders.PitchContourDataset import PitchContourDataset
 from dataLoaders.PitchContourDataloader import PitchContourDataloader
 from sklearn import metrics
-from eval_utils import eval_model, eval_regression
+import eval_utils
 
 # check is cuda is available and print result
 CUDA_AVAILABLE = torch.cuda.is_available()
@@ -30,6 +30,7 @@ NUM_BATCHES = 10
 BAND = 'middle'
 SEGMENT = '2'
 METRIC = 0 # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
+MTYPE = 'conv'
 
 # define model
 perf_model = PCConvNet(0)
@@ -38,7 +39,7 @@ if CUDA_AVAILABLE:
 criterion = nn.MSELoss()   
 
 # read the model
-filename = '1410_4000_middle_0_6_Reg'
+filename = '1410_4000_middle_0_12_Reg'
 if torch.cuda.is_available():
     perf_model.cuda()
     perf_model.load_state_dict(torch.load('saved/' + filename + '.pt'))
@@ -56,7 +57,19 @@ dataloader = PitchContourDataloader(dataset, NUM_DATA_POINTS, NUM_BATCHES)
 _, _, _, _, tef = dataloader.create_split_data(1000, 500)
 
 # test of full length data
-test_loss, test_r_sq, test_accu, test_accu2 = eval_model(perf_model, tef, METRIC)
+test_loss, test_r_sq, test_accu, test_accu2 = eval_utils.eval_model(perf_model, criterion, tef, METRIC, MTYPE)
 print('[%s %0.5f, %s %0.5f, %s %0.5f %0.5f]'% ('Testing Loss: ', test_loss, ' R-sq: ', test_r_sq, ' Accu:', test_accu, test_accu2))
+
+'''
+data_point = tef[0]
+X = data_point['pitch_tensor']
+y = data_point['score_tensor'][:, METRIC]
+saliency_map = eval_utils.compute_saliency_maps(X, y, perf_model)
+plt.plot(X.view(-1).numpy())
+plt.plot(saliency_map.view(-1).numpy())
+plt.ylabel('Saliency Map and Pitch Contour')
+plt.show()
+'''
+
 
 
