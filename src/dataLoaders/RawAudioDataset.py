@@ -1,5 +1,6 @@
 from __future__ import print_function
 import os
+import dill
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -14,7 +15,8 @@ class RawAudioDataset(Dataset):
         Args:
             data_path:  full path to the file which contains the pitch contour data
         """
-        self.data = np.load(open(data_path, 'rb'))
+        assert data_path.split('.')[1] == 'dill'
+        self.data = dill.load(open(data_path, 'rb'))
         self.length = len(self.data)
 
         # perform a few pre-processing steps
