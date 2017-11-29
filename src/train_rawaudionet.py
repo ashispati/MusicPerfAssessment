@@ -63,13 +63,13 @@ W_DECAY = args.weight_decay
 MOMENTUM = args.momentum
 METRIC = args.metric # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
 
-train_dataset = RawAudioDataset(op.join('dat', 'train.npy'))
+train_dataset = RawAudioDataset(op.join('dat', 'train.dill'))
 train_dataloader = RawAudioDataLoader(train_dataset, NUM_DATA_POINTS, NUM_BATCHES)
 
-valid_dataset = RawAudioDataset(op.join('dat', 'valid.npy'))
+valid_dataset = RawAudioDataset(op.join('dat', 'valid.dill'))
 valid_dataloader = RawAudioDataLoader(valid_dataset)
 
-test_dataset = RawAudioDataset(op.join('dat', 'test.npy'))
+test_dataset = RawAudioDataset(op.join('dat', 'test.dill'))
 test_dataloader = RawAudioDataLoader(test_dataset)
 
 # tr1, v1, te1 = dataloader.create_split_data(1000, 500)
