@@ -34,7 +34,7 @@ NUM_BATCHES = 10
 BAND = 'middle'
 SEGMENT = '2'
 METRIC = 0 # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
-MTYPE = 'conv'
+MTYPE = 'lstm'
 
 # define model
 if MTYPE == 'conv':
@@ -43,7 +43,7 @@ elif MTYPE == 'lstm':
     perf_model = PCConvLstmNet()
 if CUDA_AVAILABLE:
     perf_model.cuda()
-criterion = nn.MSELoss()   
+criterion = nn.MSELoss() 
 
 # read the model
 filename = str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS) + '_' + BAND + '_' + str(METRIC) + '_' + str(RUN) + '_' + MTYPE + '_best_Reg'
