@@ -92,7 +92,6 @@ class RawAudioDataLoader(DataLoader):
             data['ratings_tensor'] = ratings_tensor
             data['class_ratings_tensor'] = class_ratings_tensor
             batched_data.append(data)
-        print(count)
         return batched_data
 
     # def create_split_data(self, chunk_len, hop):

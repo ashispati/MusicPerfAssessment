@@ -12,6 +12,7 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
+from datetime import datetime
 from dataLoaders.RawAudioDataset import RawAudioDataset
 from dataLoaders.RawAudioDataLoader import RawAudioDataLoader
 from models.RawAudioNet import RawAudioNet
@@ -63,6 +64,17 @@ W_DECAY = args.weight_decay
 MOMENTUM = args.momentum
 METRIC = args.metric # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
 
+print('\nTraining Args: ')
+print('NUM_EPOCHS: {}'.format(NUM_EPOCHS))
+print('NUM_DATA_POINTS: {}'.format(NUM_DATA_POINTS))
+print('NUM_BATCHES: {}'.format(NUM_BATCHES))
+print('BAND: {}'.format(BAND))
+print('SEGMENT: {}'.format(SEGMENT))
+print('L_RATE: {}'.format(L_RATE))
+print('W_DECAY: {}'.format(W_DECAY))
+print('MOMENTUM: {}'.format(MOMENTUM))
+print('METRIC: {}\n'.format(METRIC))
+
 train_dataset = RawAudioDataset(op.join('dat', 'train.dill'))
 train_dataloader = RawAudioDataLoader(train_dataset, NUM_DATA_POINTS, NUM_BATCHES)
 
@@ -92,7 +104,8 @@ perf_model = RawAudioNet()
 if CUDA_AVAILABLE:
     perf_model.cuda()
 criterion = nn.MSELoss()
-perf_optimizer = optim.SGD(perf_model.parameters(), lr=L_RATE, momentum=MOMENTUM, weight_decay=W_DECAY)
+# perf_optimizer = optim.SGD(perf_model.parameters(), lr=L_RATE, momentum=MOMENTUM, weight_decay=W_DECAY)
+perf_optimizer = optim.Adam(perf_model.parameters(), lr=L_RATE)
 print(perf_model)
 
 # define evaluation method
@@ -192,7 +205,7 @@ def train(model, criterion, optimizer, data, metric):
 	# iterate over batches for training
     for batch_idx in range(num_batches):
 		# clear gradients and loss
-        model.zero_grad()
+        optimizer.zero_grad()
         loss = 0
 
         # extract audio tensor and score for the batch
@@ -206,19 +219,23 @@ def train(model, criterion, optimizer, data, metric):
         if CUDA_AVAILABLE:
             model_input = model_input.cuda()
             model_target = model_target.cuda()
-	# wrap all tensors in pytorch Variable
+	    # wrap all tensors in pytorch Variable
         model_input = Variable(model_input)
         model_target = Variable(model_target)
         # compute forward pass for the network
         mini_batch_size = model_input.size(0)
-        #model.init_hidden(mini_batch_size)
+        model.init_hidden(mini_batch_size)
         model_output = model(model_input)
+        # print('model_input: {}'.format(model_input))
+        # print('model_output: {}'.format(model_output))
 
         # compute loss
         loss = criterion(model_output, model_target)
+
         # compute backward pass and step
         loss.backward()
         optimizer.step()
+
         # add loss
         loss_avg += loss.data[0]
     loss_avg /= num_batches
@@ -287,7 +304,9 @@ configure('runs/' + file_info + '_Reg' , flush_secs = 2)
 PRINT_EVERY = 1
 ADJUST_EVERY = 1000
 START = time.time()
+BEST_VAL_R2 = -1
 
+final_results = {}
 try:
     print("Training for %d epochs..." % NUM_EPOCHS)
     for epoch in range(1, NUM_EPOCHS + 1):
@@ -296,6 +315,7 @@ try:
          val_r_sq, val_accu, val_accu2) = train_and_validate(perf_model, criterion,
                                                              perf_optimizer, train_data,
                                                              valid_data, METRIC)
+        BEST_VAL_R2 = max(val_r_sq, BEST_VAL_R2)
         # adjut learning rate
         adjust_learning_rate(perf_optimizer, epoch, ADJUST_EVERY)
         # log data for visualization later
@@ -309,10 +329,19 @@ try:
         log_value('val_accu2', val_accu2, epoch)
         # print loss
         if epoch % PRINT_EVERY == 0:
-            print('[%s (%d %.1f%%)]' % (time_since(START), epoch, float(epoch) / NUM_EPOCHS * 100))
+            print('[time_elapsed: %s, epoch: %d, percent_complete:  %.1f%%]'%(time_since(START), epoch, float(epoch) / NUM_EPOCHS * 100))
             print('[%s %0.5f, %s %0.5f, %s %0.5f %0.5f]'% ('Train Loss: ', train_loss, ' R-sq: ', train_r_sq, ' Accu:', train_accu, train_accu2))
             print('[%s %0.5f, %s %0.5f, %s %0.5f %0.5f]'% ('Valid Loss: ', val_loss, ' R-sq: ', val_r_sq, ' Accu:', val_accu, val_accu2))
-
+            print('[best validation r2 value seen: %0.5f]'%(BEST_VAL_R2))
+    final_results.update({'final_train_loss': train_loss,
+                          'final_val_loss': val_loss,
+                          'final_train_r_sq': train_r_sq,
+                          'final_val_r_sq': val_r_sq,
+                          'final_train_accuracy': train_accu,
+                          'final_val_accuracy': val_accu,
+                          'final_train_accuracy_2': train_accu2,
+                          'final_val_accuracy_2': val_accu2,
+                          'best_val_r_sq': BEST_VAL_R2})
     print("Saving...")
     save(file_info)
 except KeyboardInterrupt:
@@ -320,10 +349,21 @@ except KeyboardInterrupt:
     save(file_info)
 
 # test on testing data
-test_loss, test_r_sq, test_accu, test_accu2 = eval_model(perf_model, testing_data, METRIC)
+test_loss, test_r_sq, test_accu, test_accu2 = eval_model(perf_model, test_data, METRIC)
 print('[%s %0.5f, %s %0.5f, %s %0.5f %0.5f]'% ('Testing Loss: ', test_loss, ' R-sq: ', test_r_sq, ' Accu:', test_accu, test_accu2))
+final_results.update({'test_loss': test_loss,
+                      'test_r_sq': test_r_sq,
+                      'test_accuracy': test_accu,
+                      'test_accuracy_2': test_accu2})
+
+print("Saving final results.")
+datestring = datetime.utcnow().date().strptime('%Y%m%d')
+with open('save/rawaudionet_final_results_metric_%d_%s.txt'%(METRIC, datestring), 'wb') as outfile:
+    for k,v in final_results.iteritems():
+        outfile.write('%s:\t%s\n'%(k, v))
+    outfile.close()
 
 # test of full length data
-test_loss, test_r_sq, test_accu, test_accu2 = eval_model(perf_model, full_testing_data, METRIC)
-print('[%s %0.5f, %s %0.5f, %s %0.5f %0.5f]'% ('Testing Loss: ', test_loss, ' R-sq: ', test_r_sq, ' Accu:', test_accu, test_accu2))
+# test_loss, test_r_sq, test_accu, test_accu2 = eval_model(perf_model, test_data, METRIC)
+# print('[%s %0.5f, %s %0.5f, %s %0.5f %0.5f]'% ('Testing Loss: ', test_loss, ' R-sq: ', test_r_sq, ' Accu:', test_accu, test_accu3))
 
