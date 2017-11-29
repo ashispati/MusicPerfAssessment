@@ -16,28 +16,17 @@ class RawAudioNet(nn.Module):
         """
         super(RawAudioNet, self).__init__()
         # initialize interal parameters
-        self.kernel_size = 9
-        self.stride = 5
+        self.kernel_size = 1024
+        self.stride = 512
         self.hidden_size = 32
         self.n_layers = 1
-        self.n0_features = 6
+        self.n0_features = 8
         self.n1_features = 16
-        #self.n2_features = 32
-        #self.n3_features = 32
-        #self.n4_features = 64
-        #self.n5_features = 128
+        self.n2_features = 32
         # define the different convolutional modules
         self.conv0 = nn.Conv1d(1, self.n0_features, self.kernel_size, self.stride)
-        #self.conv0_bn = nn.BatchNorm1d(self.n0_features)
         self.conv1 = nn.Conv1d(self.n0_features, self.n1_features, self.kernel_size, self.stride)
-        #self.conv1_bn = nn.BatchNorm1d(self.n1_features)
-        #self.conv2 = nn.Conv1d(self.n1_features, self.n2_features, self.kernel_size, self.stride)
-        #self.conv2_bn = nn.BatchNorm1d(self.n2_features)
-        #self.conv3 = nn.Conv1d(self.n2_features, self.n3_features, self.kernel_size, self.stride)
-        #self.conv3_bn = nn.BatchNorm1d(self.n3_features)
-        #self.conv4 = nn.Conv1d(self.n3_features, self.n4_features, self.kernel_size, self.stride)
-        #self.conv4_bn = nn.BatchNorm1d(self.n4_features)
-        #self.conv5 = nn.Conv1d(self.n4_features, self.n5_features, self.kernel_size, self.stride)
+        self.conv2 = nn.Conv1d(self.n1_features, self.n2_features, self.kernel_size, self.stride)
         # define the LSTM module
         self.lstm = nn.LSTM(self.n1_features, self.hidden_size, self.n_layers, batch_first=True)
         # intialize the hidden state
@@ -56,19 +45,10 @@ class RawAudioNet(nn.Module):
         """
         # get mini batch size from input
         mini_batch_size, zero_pad_len = input.size()
-
         # compute the output of the convolutional layer
-        #conv0_out = F.relu(self.conv0_bn(self.conv0(input.view(mini_batch_size, 1, zero_pad_len))))
-        #conv1_out = F.relu(self.conv1_bn(self.conv1(conv0_out)))
-        #conv2_out = F.relu(self.conv2_bn(self.conv2(conv1_out)))
-        #conv3_out = F.relu(self.conv3_bn(self.conv3(conv2_out)))
-        #conv4_out = F.relu(self.conv4_bn(self.conv4(conv3_out)))
         conv0_out = F.max_pool1d(F.relu(self.conv0(input.view(mini_batch_size, 1, zero_pad_len))), 2)
         conv1_out = F.max_pool1d(F.relu(self.conv1(conv0_out)), 2)
-        #conv2_out = F.max_pool1d(F.relu(self.conv2(conv1_out)), 2)
-        #conv3_out = F.max_pool1d(F.relu(self.conv3(conv2_out)), 2)
-        #conv4_out = F.max_pool1d(F.relu(self.conv4(conv3_out)), 2)
-        #conv5_out = F.relu(self.conv5(conv4_out))
+        conv1_out = F.max_pool1d(F.relu(self.conv2(conv0_out)), 2)
         # compute the output of the lstm layer
         # transpose to ensure sequence length is dim 1 now
         lstm_out, self.hidden = self.lstm(conv1_out.transpose(1, 2))
