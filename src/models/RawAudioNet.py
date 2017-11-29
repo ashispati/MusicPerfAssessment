@@ -53,7 +53,7 @@ class RawAudioNet(nn.Module):
         conv0_out = F.max_pool1d(F.relu(self.conv0(input.view(mini_batch_size, 1, zero_pad_len))), 2)
         print('conv0_out size: {}'.format(conv0_out.size()))
         temp = F.relu(self.conv1(conv0_out))
-		print('temp size: {}'.format(temp.size()))
+        print('temp size: {}'.format(temp.size()))
         conv1_out = F.max_pool1d(F.relu(self.conv1(conv0_out)), 2)
         print('conv1_out size: {}'.format(conv1_out.size()))
         conv2_out = F.relu(self.conv2(conv1_out))
