@@ -11,6 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 from models.PCConvNet import PCConvNet
+from models.PCConvLstmNet import PCConvLstmNet
 from dataLoaders.PitchContourDataset import PitchContourDataset
 from dataLoaders.PitchContourDataloader import PitchContourDataloader
 from sklearn import metrics
@@ -24,22 +25,26 @@ if CUDA_AVAILABLE != True:
     import matplotlib.image as mpimg
 
 # initializa training parameters
-NUM_EPOCHS = 10000
+RUN = 15
+NUM_EPOCHS = 4000
 NUM_DATA_POINTS = 1410
 NUM_BATCHES = 10
 BAND = 'middle'
 SEGMENT = '2'
 METRIC = 0 # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
-MTYPE = 'conv'
+MTYPE = 'lstm'
 
 # define model
-perf_model = PCConvNet(0)
+if MTYPE == 'conv':
+    perf_model = PCConvNet(0)
+elif MTYPE == 'lstm':
+    perf_model = PCConvLstmNet()
 if CUDA_AVAILABLE:
     perf_model.cuda()
-criterion = nn.MSELoss()   
+criterion = nn.MSELoss() 
 
 # read the model
-filename = '1410_4000_middle_0_12_Reg'
+filename = str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS) + '_' + BAND + '_' + str(METRIC) + '_' + str(RUN) + '_' + MTYPE + '_Reg'
 if torch.cuda.is_available():
     perf_model.cuda()
     perf_model.load_state_dict(torch.load('saved/' + filename + '.pt'))
@@ -54,8 +59,28 @@ else:
     data_path = 'dat/' + file_name + '_3.dill'
 dataset = PitchContourDataset(data_path)
 dataloader = PitchContourDataloader(dataset, NUM_DATA_POINTS, NUM_BATCHES)
-_, _, _, _, tef = dataloader.create_split_data(1000, 500)
+_, _, vef, _, tef = dataloader.create_split_data(1000, 500)
 
+# validate on full length data
+test_loss, test_r_sq, test_accu, test_accu2 = eval_utils.eval_model(perf_model, criterion, vef, METRIC, MTYPE)
+print('[%s %0.5f, %s %0.5f, %s %0.5f %0.5f]'% ('Valid Loss: ', test_loss, ' R-sq: ', test_r_sq, ' Accu:', test_accu, test_accu2))
+# test of full length data
+test_loss, test_r_sq, test_accu, test_accu2 = eval_utils.eval_model(perf_model, criterion, tef, METRIC, MTYPE)
+print('[%s %0.5f, %s %0.5f, %s %0.5f %0.5f]'% ('Testing Loss: ', test_loss, ' R-sq: ', test_r_sq, ' Accu:', test_accu, test_accu2))
+
+
+# read the best  model
+filename = str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS) + '_' + BAND + '_' + str(METRIC) + '_' + str(RUN) + '_' + MTYPE + '_best_Reg'
+if torch.cuda.is_available():
+    perf_model.cuda()
+    perf_model.load_state_dict(torch.load('saved/' + filename + '.pt'))
+else:
+    perf_model.load_state_dict(torch.load('saved/' + filename + '.pt', map_location=lambda storage, loc: storage))
+
+
+# validate on full length data
+test_loss, test_r_sq, test_accu, test_accu2 = eval_utils.eval_model(perf_model, criterion, vef, METRIC, MTYPE)
+print('[%s %0.5f, %s %0.5f, %s %0.5f %0.5f]'% ('Valid Loss: ', test_loss, ' R-sq: ', test_r_sq, ' Accu:', test_accu, test_accu2))
 # test of full length data
 test_loss, test_r_sq, test_accu, test_accu2 = eval_utils.eval_model(perf_model, criterion, tef, METRIC, MTYPE)
 print('[%s %0.5f, %s %0.5f, %s %0.5f %0.5f]'% ('Testing Loss: ', test_loss, ' R-sq: ', test_r_sq, ' Accu:', test_accu, test_accu2))

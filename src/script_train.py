@@ -31,8 +31,8 @@ if CUDA_AVAILABLE != True:
     import matplotlib.image as mpimg
 
 # initializa training parameters
-RUN = 12
-NUM_EPOCHS = 4000
+RUN = 21
+NUM_EPOCHS = 2000
 NUM_DATA_POINTS = 1410
 NUM_BATCHES = 10
 BAND = 'middle'
@@ -55,17 +55,17 @@ tr5, v5, _, te5, _ = dataloader.create_split_data(3000, 1500)
 tr6, v6, vef, te6, tef = dataloader.create_split_data(4000, 2000)
 training_data = tr1 + tr2 + tr3 + tr4 + tr5 + tr6
 validation_data = vef #+ v2 + v3 + v4 + v5 + v6
-testing_data = te1 + te2 + te3 + te4 + te5 + te6
+#testing_data = te1 + te2 + te3 + te4 + te5 + te6
 
 # augment data
-aug_training_data = training_data #train_utils.augment_data(training_data)
+aug_training_data = training_data#train_utils.augment_data(training_data)
 #aug_training_data = train_utils.augment_data(aug_training_data)
 aug_validation_data = validation_data  #train_utils.augment_data(validation_data)
 
 ## initialize model
 if MTYPE == 'conv':
     perf_model = PCConvNet(0)
-else:
+elif MTYPE == 'lstm':
     perf_model = PCConvLstmNet()        
 if torch.cuda.is_available():
     perf_model.cuda()
@@ -74,6 +74,7 @@ LR_RATE = 0.01
 W_DECAY = 1e-5
 MOMENTUM = 0.9
 perf_optimizer = optim.SGD(perf_model.parameters(), lr= LR_RATE, momentum=MOMENTUM, weight_decay=W_DECAY)
+#perf_optimizer = optim.Adam(perf_model.parameters(), lr = LR_RATE, weight_decay = W_DECAY)
 print(perf_model)
 
 # declare save file name
@@ -95,7 +96,7 @@ try:
         # perform training and validation
         train_loss, train_r_sq, train_accu, train_accu2, val_loss, val_r_sq, val_accu, val_accu2 = train_utils.train_and_validate(perf_model, criterion, perf_optimizer, aug_training_data, aug_validation_data, METRIC, MTYPE)
         # adjut learning rate
-        train_utils.adjust_learning_rate(perf_optimizer, epoch, ADJUST_EVERY)
+        # train_utils.adjust_learning_rate(perf_optimizer, epoch, ADJUST_EVERY)
         # log data for visualization later
         log_value('train_loss', train_loss, epoch)
         log_value('val_loss', val_loss, epoch)
@@ -121,15 +122,12 @@ except KeyboardInterrupt:
     print("Saving before quit...")
     train_utils.save(file_info, perf_model)
 
-# test on testing data 
-test_loss, test_r_sq, test_accu, test_accu2 = eval_utils.eval_model(perf_model, criterion, testing_data, METRIC, MTYPE)
-print('[%s %0.5f, %s %0.5f, %s %0.5f %0.5f]'% ('Testing Loss: ', test_loss, ' R-sq: ', test_r_sq, ' Accu:', test_accu, test_accu2))
-
+# test
 # test of full length data
 test_loss, test_r_sq, test_accu, test_accu2 = eval_utils.eval_model(perf_model, criterion, tef, METRIC, MTYPE)
 print('[%s %0.5f, %s %0.5f, %s %0.5f %0.5f]'% ('Testing Loss: ', test_loss, ' R-sq: ', test_r_sq, ' Accu:', test_accu, test_accu2))
 
-# test on best validation model
+# validate and test on best validation model
 # read the model
 filename = file_info + '_best' + '_Reg'
 if torch.cuda.is_available():
@@ -137,6 +135,9 @@ if torch.cuda.is_available():
     perf_model.load_state_dict(torch.load('saved/' + filename + '.pt'))
 else:
     perf_model.load_state_dict(torch.load('saved/' + filename + '.pt', map_location=lambda storage, loc: storage))
+
+val_loss, val_r_sq, val_accu, val_accu2 = eval_utils.eval_model(perf_model, criterion, vef, METRIC, MTYPE)
+print('[%s %0.5f, %s %0.5f, %s %0.5f %0.5f]'% ('Valid Loss: ', val_loss, ' R-sq: ', val_r_sq, ' Accu:', val_accu, val_accu2))
 
 test_loss, test_r_sq, test_accu, test_accu2 = eval_utils.eval_model(perf_model, criterion, tef, METRIC, MTYPE)
 print('[%s %0.5f, %s %0.5f, %s %0.5f %0.5f]'% ('Testing Loss: ', test_loss, ' R-sq: ', test_r_sq, ' Accu:', test_accu, test_accu2))
