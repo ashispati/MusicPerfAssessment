@@ -74,7 +74,7 @@ class RawAudioDataLoader(DataLoader):
         # batch the sorted data
         count = 0
         batched_data = []
-        for batch_num in xrange(self.num_batches):
+        for batch_num in range(self.num_batches):
             longest_audio_length = len(sorted_data[count]['audio'])
             audio_tensor = torch.zeros(self.mini_batch_size, longest_audio_length)
             ratings_tensor = torch.zeros(self.mini_batch_size, len(sorted_data[count]['ratings']))

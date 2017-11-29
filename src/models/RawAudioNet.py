@@ -16,19 +16,22 @@ class RawAudioNet(nn.Module):
         """
         super(RawAudioNet, self).__init__()
         # initialize interal parameters
-        self.kernel_size = 1024
-        self.stride = 512
+        self.n0_kernel_size = 256
+        self.n0_stride = 128
+        self.n1_kernel_size = 128
+        self.n1_stride = 64
+
         self.hidden_size = 32
         self.n_layers = 1
         self.n0_features = 8
         self.n1_features = 16
         self.n2_features = 32
         # define the different convolutional modules
-        self.conv0 = nn.Conv1d(1, self.n0_features, self.kernel_size, self.stride)
-        self.conv1 = nn.Conv1d(self.n0_features, self.n1_features, self.kernel_size, self.stride)
-        self.conv2 = nn.Conv1d(self.n1_features, self.n2_features, self.kernel_size, self.stride)
+        self.conv0 = nn.Conv1d(1, self.n0_features, self.n0_kernel_size, self.n0_stride)
+        self.conv1 = nn.Conv1d(self.n0_features, self.n1_features, self.n1_kernel_size, self.n1_stride)
+        self.conv2 = nn.Conv1d(self.n1_features, self.n2_features, 2, 1)
         # define the LSTM module
-        self.lstm = nn.LSTM(self.n1_features, self.hidden_size, self.n_layers, batch_first=True)
+        self.lstm = nn.LSTM(self.n2_features, self.hidden_size, self.n_layers, batch_first=True)
         # intialize the hidden state
         self.init_hidden(1)
         # define the final linear layer
@@ -43,15 +46,21 @@ class RawAudioNet(nn.Module):
             			zero_pad_len: 		length to which each input sequence is zero-padded
                 		seq_lengths:		torch tensor (mini_batch_size x 1), length of each pitch contour
         """
+        print('input size: {}'.format(input.size()))
         # get mini batch size from input
         mini_batch_size, zero_pad_len = input.size()
         # compute the output of the convolutional layer
         conv0_out = F.max_pool1d(F.relu(self.conv0(input.view(mini_batch_size, 1, zero_pad_len))), 2)
+        print('conv0_out size: {}'.format(conv0_out.size()))
+        temp = F.relu(self.conv1(conv0_out))
+		print('temp size: {}'.format(temp.size()))
         conv1_out = F.max_pool1d(F.relu(self.conv1(conv0_out)), 2)
-        conv1_out = F.max_pool1d(F.relu(self.conv2(conv0_out)), 2)
+        print('conv1_out size: {}'.format(conv1_out.size()))
+        conv2_out = F.relu(self.conv2(conv1_out))
+        print('conv2_out size: {}'.format(conv2_out.size()))
         # compute the output of the lstm layer
         # transpose to ensure sequence length is dim 1 now
-        lstm_out, self.hidden = self.lstm(conv1_out.transpose(1, 2))
+        lstm_out, self.hidden = self.lstm(conv2_out.transpose(1, 2))
 
         # extract final output of the lstm layer
 		# TODO: take into individual lengths

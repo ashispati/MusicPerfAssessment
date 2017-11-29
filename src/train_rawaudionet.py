@@ -33,9 +33,9 @@ if CUDA_AVAILABLE != True:
 parser = argparse.ArgumentParser()
 parser.add_argument('-e', '--epochs', default=100, type=int,
                     help="number of training epochs.")
-parser.add_argument('-nd', '--data_points', default=200, type=int,
+parser.add_argument('-nd', '--data_points', default=1100, type=int,
                     help="number of data points.")
-parser.add_argument('-nb', '--num_batches', default=10, type=int,
+parser.add_argument('-nb', '--num_batches', default=110, type=int,
                     help="number of batches to use in training.")
 parser.add_argument('-b', '--band', default="middle",
                     help="frequency (band) of data to use.")
@@ -67,10 +67,10 @@ train_dataset = RawAudioDataset(op.join('dat', 'train.dill'))
 train_dataloader = RawAudioDataLoader(train_dataset, NUM_DATA_POINTS, NUM_BATCHES)
 
 valid_dataset = RawAudioDataset(op.join('dat', 'valid.dill'))
-valid_dataloader = RawAudioDataLoader(valid_dataset)
+valid_dataloader = RawAudioDataLoader(valid_dataset, num_batches=int(len(valid_dataset)/10)) 
 
 test_dataset = RawAudioDataset(op.join('dat', 'test.dill'))
-test_dataloader = RawAudioDataLoader(test_dataset)
+test_dataloader = RawAudioDataLoader(test_dataset, num_batches=int(len(test_dataset)/10))
 
 # tr1, v1, te1 = dataloader.create_split_data(1000, 500)
 # training_data = tr1
