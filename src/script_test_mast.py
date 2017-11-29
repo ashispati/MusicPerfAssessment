@@ -27,7 +27,7 @@ if CUDA_AVAILABLE:
 criterion = nn.MSELoss()   
 
 # read the model
-filename = '1410_4000_middle_0_6_Reg'
+filename = '1410_4000_middle_0_12_Reg'
 if torch.cuda.is_available():
     perf_model.cuda()
     perf_model.load_state_dict(torch.load('saved/' + filename + '.pt'))

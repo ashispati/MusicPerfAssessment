@@ -29,9 +29,6 @@ def eval_regression(target, pred):
     # compute r-sq score 
     pred_np[pred_np < 0] = 0
     pred_np[pred_np > 1] = 1
-    #print(pred_np)
-    #print(target_np)
-    a = np.absolute((pred_np - target_np))
     r_sq = metrics.r2_score(target_np, pred_np)
     # compute 11-class classification accuracy
     pred_class = np.rint(pred_np * 10)
@@ -49,7 +46,7 @@ def eval_regression(target, pred):
     accu2 = metrics.accuracy_score(target_class, pred_class, normalize=True)
     return r_sq, accu, accu2
 
-def eval_model(model, criterion, data, metric, mtype):
+def eval_model(model, criterion, data, metric, mtype, extra_outs = 0):
     """
     Returns the model performance metrics
     Args:
@@ -58,6 +55,7 @@ def eval_model(model, criterion, data, metric, mtype):
         data:           list, batched testing data
         metric:         int, from 0 to 3, which metric to evaluate against
         mtype:          string, 'conv' for fully convolutional model, 'lstm' for lstm based model
+        extra_outs:     returns the target and predicted values if true
     """
     # put the model in eval mode
     model.eval()
@@ -94,7 +92,10 @@ def eval_model(model, criterion, data, metric, mtype):
         target = torch.cat((target, score_tensor), 0) if target.size else score_tensor
     r_sq, accu, accu2 = eval_regression(target, pred)
     loss_avg /= num_batches
-    return loss_avg, r_sq, accu, accu2
+    if extra_outs:
+        return loss_avg, r_sq, accu, accu2, pred, target
+    else:
+        return loss_avg, r_sq, accu, accu2
 
 def compute_saliency_maps(X, y, model):
     """
@@ -114,6 +115,7 @@ def compute_saliency_maps(X, y, model):
     
     # compute forward pass and class scores
     pred_scores = model.forward(X_var)
+    print(pred_scores)
 
     # compute gradient wrt input
     pred_scores.sum().backward()
