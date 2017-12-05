@@ -19,6 +19,8 @@ src/dat/
 *.exe
 *.o
 *.so
+*.swp
+.*.swp
 
 # Libraries #
 #############
