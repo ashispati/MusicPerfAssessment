@@ -16,8 +16,8 @@ class PCConvLstmNet(nn.Module):
         """
         super(PCConvLstmNet, self).__init__()
         # initialize interal parameters
-        #self.kernel_size = 7
-        self.kernel_size = 15
+        self.kernel_size = 7
+        #self.kernel_size = 15
         self.stride = 3
         self.hidden_size = 16
         self.n_layers = 1
