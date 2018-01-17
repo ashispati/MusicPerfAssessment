@@ -80,9 +80,13 @@ class SpectralDataset(Dataset, AudioToSpectralRep):
     def __getitem__(self, idx):
         y, sr = self.perf_data[idx]['audio']
         X = self.extract_features(y, sr)
-        label = self.perf_data[idx]['class_ratings'][self.label_id]
-        y = np.zeros(11)
-        y[label] = 1
+        label = self.perf_data[idx]['ratings'][self.label_id]
+        # For one-hot labels
+        # y = np.zeros(11)
+        # y[label] = 1
+
+        # For class labels
+        y = label
         return torch.unsqueeze(X, 0), y
 
 def _collate_fn(batch):
@@ -102,10 +106,10 @@ def _collate_fn(batch):
         seq_length = tensor.size(2)
         inputs[x].narrow(2, 0, seq_length).copy_(tensor)
         targets.append(target)
-    targets = torch.Tensor(targets)#.type(torch.LongTensor)
+    targets = torch.Tensor(targets)
     return inputs, targets
 
-class AudioDataLoader(DataLoader):
+class SpectralDataLoader(DataLoader):
     def __init__(self, *args, **kwargs):
-        super(AudioDataLoader, self).__init__(*args, **kwargs)
+        super(SpectralDataLoader, self).__init__(*args, **kwargs)
         self.collate_fn = _collate_fn
