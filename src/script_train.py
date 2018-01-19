@@ -31,11 +31,11 @@ if CUDA_AVAILABLE != True:
     import matplotlib.image as mpimg
 
 # initializa training parameters
-RUN = 21
+RUN = 26
 NUM_EPOCHS = 2000
-NUM_DATA_POINTS = 1410
+NUM_DATA_POINTS = 2800
 NUM_BATCHES = 10
-BAND = 'middle'
+BAND = 'combined'
 SEGMENT = '2'
 METRIC = 0 # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
 MTYPE = 'lstm'
@@ -53,12 +53,13 @@ tr3, v3, _, te3, _ = dataloader.create_split_data(2000, 1000)
 tr4, v4, _, te4, _ = dataloader.create_split_data(2500, 1000)
 tr5, v5, _, te5, _ = dataloader.create_split_data(3000, 1500)
 tr6, v6, vef, te6, tef = dataloader.create_split_data(4000, 2000)
-training_data = tr1 + tr2 + tr3 + tr4 + tr5 + tr6
+training_data = tr1 + tr2 + tr3 #+ tr4 + tr5 + tr6
 validation_data = vef #+ v2 + v3 + v4 + v5 + v6
 #testing_data = te1 + te2 + te3 + te4 + te5 + te6
 
 # augment data
-aug_training_data = training_data#train_utils.augment_data(training_data)
+#aug_training_data = training_data
+aug_training_data = train_utils.augment_data(training_data)
 #aug_training_data = train_utils.augment_data(aug_training_data)
 aug_validation_data = validation_data  #train_utils.augment_data(validation_data)
 
