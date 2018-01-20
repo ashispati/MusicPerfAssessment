@@ -46,7 +46,7 @@ def eval_regression(target, pred):
     accu2 = metrics.accuracy_score(target_class, pred_class, normalize=True)
     return r_sq, accu, accu2
 
-def eval_model(model, criterion, data, metric, mtype, extra_outs = 0):
+def eval_model(model, criterion, data, metric, mtype, ctype, extra_outs = 0):
     """
     Returns the model performance metrics
     Args:
@@ -56,6 +56,7 @@ def eval_model(model, criterion, data, metric, mtype, extra_outs = 0):
         metric:         int, from 0 to 3, which metric to evaluate against
         mtype:          string, 'conv' for fully convolutional model, 'lstm' for lstm based model
         extra_outs:     returns the target and predicted values if true
+        ctype:          int, 0 for regression, 1 for classification
     """
     # put the model in eval mode
     model.eval()
@@ -72,6 +73,9 @@ def eval_model(model, criterion, data, metric, mtype, extra_outs = 0):
         # prepare data for input to model
         model_input = pitch_tensor.clone()
         model_target = score_tensor.clone()
+        if ctype == 1:
+            #model_input = model_input.long()
+            model_target = model_target.long()
         # convert to cuda tensors if cuda available
         if torch.cuda.is_available():
             model_input = model_input.cuda()
@@ -88,8 +92,14 @@ def eval_model(model, criterion, data, metric, mtype, extra_outs = 0):
         loss = criterion(model_output, model_target)
         loss_avg += loss.data[0]
         # concatenate target and pred for computing validation metrics
-        pred = torch.cat((pred, model_output.data.view(-1)), 0) if pred.size else model_output.data.view(-1)
+        if ctype == 0:
+            pred = torch.cat((pred, model_output.data.view(-1)), 0) if pred.size else model_output.data.view(-1)
+        else:
+            pred = torch.cat((pred, model_output.data), 0) if pred.size else model_output.data
         target = torch.cat((target, score_tensor), 0) if target.size else score_tensor
+    if ctype == 1:
+        pred = nn.functional.softmax(pred).data
+        _, pred = torch.max(pred, 1) 
     r_sq, accu, accu2 = eval_regression(target, pred)
     loss_avg /= num_batches
     if extra_outs:

@@ -112,7 +112,7 @@ class PitchContourDataloader(DataLoader):
                 zeropad_pc = np.zeros((chunk_len,))
                 zeropad_pc[:pc.shape[0],] = pc
                 pc = zeropad_pc 
-            while count + chunk_len < len(pc):
+            while count + chunk_len <= len(pc):
                 d = {}
                 d['pitch_contour'] = pc[count: count+chunk_len]
                 d['ratings'] = gt
@@ -156,7 +156,7 @@ class PitchContourDataloader(DataLoader):
                 zeropad_pc = np.zeros((chunk_len,))
                 zeropad_pc[:pc.shape[0],] = pc
                 pc = zeropad_pc
-            while count + chunk_len < len(pc):
+            while count + chunk_len <= len(pc):
                 d = {}
                 d['pitch_contour'] = pc[count: count+chunk_len]
                 d['ratings'] = gt
@@ -197,7 +197,7 @@ class PitchContourDataloader(DataLoader):
                 zeropad_pc = np.zeros((chunk_len,))
                 zeropad_pc[:pc.shape[0],] = pc
                 pc = zeropad_pc
-            while count + chunk_len < len(pc):
+            while count + chunk_len <= len(pc):
                 d = {}
                 d['pitch_contour'] = pc[count: count+chunk_len]
                 d['ratings'] = gt

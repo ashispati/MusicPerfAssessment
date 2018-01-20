@@ -34,7 +34,7 @@ def augment_data(data):
     aug_data = data + aug_data
     return aug_data
 
-def train(model, criterion, optimizer, data, metric, mtype):
+def train(model, criterion, optimizer, data, metric, mtype, ctype):
     """
     Returns the model performance metrics
     Args:
@@ -44,6 +44,7 @@ def train(model, criterion, optimizer, data, metric, mtype):
         data:           list, batched testing data
         metric:         int, from 0 to 3, which metric to evaluate against
         mtype:          string, 'conv' for fully convolutional model, 'lstm' for lstm based model
+        ctype:          int, 0 for reg, 1 for classification
     """
     # Put the model in training mode
     model.train() 
@@ -55,14 +56,15 @@ def train(model, criterion, optimizer, data, metric, mtype):
 		# clear gradients and loss
         model.zero_grad()
         loss = 0
-
         # extract pitch tensor and score for the batch
         pitch_tensor = data[batch_idx]['pitch_tensor']
         score_tensor = data[batch_idx]['score_tensor'][:, metric]
-        
         # prepare data for input to model
         model_input = pitch_tensor.clone()
         model_target = score_tensor.clone()
+        if ctype == 1:
+            #model_input = model_input.long()
+            model_target = model_target.long()
         # convert to cuda tensors if cuda available
         if torch.cuda.is_available():
             model_input = model_input.cuda()
@@ -75,7 +77,6 @@ def train(model, criterion, optimizer, data, metric, mtype):
         if mtype == 'lstm':
             model.init_hidden(mini_batch_size)
         model_output = model(model_input)
-
         # compute loss
         loss = criterion(model_output, model_target)
         # compute backward pass and step
@@ -88,7 +89,7 @@ def train(model, criterion, optimizer, data, metric, mtype):
 
 
 # define training and validate method
-def train_and_validate(model, criterion, optimizer, train_data, val_data, metric, mtype):
+def train_and_validate(model, criterion, optimizer, train_data, val_data, metric, mtype, ctype = 0):
     """
     Defines the training and validation cycle for the input batched data for the conv model
     Args:
@@ -99,13 +100,14 @@ def train_and_validate(model, criterion, optimizer, train_data, val_data, metric
         val_data:       list, batched validation data
         metric:         int, from 0 to 3, which metric to evaluate against
         mtype:          string, 'conv' for fully convolutional model, 'lstm' for lstm based model
+        ctype:          int, 0 for regression, 1 for classification
     """
     # train the network
-    train(model, criterion, optimizer, train_data, metric, mtype)   
+    train(model, criterion, optimizer, train_data, metric, mtype, ctype)   
     # evaluate the network on train data
-    train_loss_avg, train_r_sq, train_accu, train_accu2 = eval_utils.eval_model(model, criterion, train_data, metric, mtype)
+    train_loss_avg, train_r_sq, train_accu, train_accu2 = eval_utils.eval_model(model, criterion, train_data, metric, mtype, ctype)
     # evaluate the network on validation data
-    val_loss_avg, val_r_sq, val_accu, val_accu2 = eval_utils.eval_model(model, criterion, val_data, metric, mtype)
+    val_loss_avg, val_r_sq, val_accu, val_accu2 = eval_utils.eval_model(model, criterion, val_data, metric, mtype, ctype)
     # return values
     return train_loss_avg, train_r_sq, train_accu, train_accu2, val_loss_avg, val_r_sq, val_accu, val_accu2
 

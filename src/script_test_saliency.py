@@ -27,14 +27,15 @@ if CUDA_AVAILABLE != True:
     import matplotlib.image as mpimg
 
 # initializa training parameters
-RUN = 15
-NUM_EPOCHS = 4000
+RUN = 18
+NUM_EPOCHS = 2000
 NUM_DATA_POINTS = 1410
 NUM_BATCHES = 10
 BAND = 'middle'
 SEGMENT = '2'
 METRIC = 0 # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
 MTYPE = 'lstm'
+CTYPE = 0
 
 # define model
 if MTYPE == 'conv':
@@ -63,7 +64,7 @@ dataset = PitchContourDataset(data_path)
 dataloader = PitchContourDataloader(dataset, NUM_DATA_POINTS, NUM_BATCHES)
 _, _, vef, _, tef = dataloader.create_split_data(1000, 500)
 # test on full length data
-test_loss, test_r_sq, test_accu, test_accu2, pred, target = eval_utils.eval_model(perf_model, criterion, tef, METRIC, MTYPE, 1)
+test_loss, test_r_sq, test_accu, test_accu2, pred, target = eval_utils.eval_model(perf_model, criterion, tef, METRIC, MTYPE, CTYPE, 1)
 print('[%s %0.5f, %s %0.5f, %s %0.5f %0.5f]'% ('Testing Loss: ', test_loss, ' R-sq: ', test_r_sq, ' Accu:', test_accu, test_accu2))
 
 # convert to numpy
