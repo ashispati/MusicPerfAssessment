@@ -7,7 +7,7 @@ from torch.autograd import Variable
 class PCConvNet(nn.Module):
     """
     Class to implement a deep neural model for music performance assessment using
-	 pitch contours as input
+     pitch contours as input
     """
 
     def __init__(self, mode):
@@ -78,10 +78,10 @@ class PCConvNet(nn.Module):
         """
         Defines the forward pass of the PitchContourAssessor module
         Args:
-                input: 	torch Variable (mini_batch_size x zero_pad_len), of input pitch contours
-                		mini_batch_size: 	size of the mini batch during one training iteration
-            			zero_pad_len: 		length to which each input sequence is zero-padded
-                		seq_lengths:		torch tensor (mini_batch_size x 1), length of each pitch contour
+                input:  torch Variable (mini_batch_size x zero_pad_len), of input pitch contours
+                        mini_batch_size:    size of the mini batch during one training iteration
+                        zero_pad_len:       length to which each input sequence is zero-padded
+                        seq_lengths:        torch tensor (mini_batch_size x 1), length of each pitch contour
         """
         # get mini batch size from input and reshape
         mini_batch_size, sig_size = input.size()
@@ -100,7 +100,7 @@ class PCConvNet(nn.Module):
 class PCConvNetCls(nn.Module):
     """
     Class to implement a deep neural model for music performance assessment using
-	 pitch contours as input for classification tasks
+     pitch contours as input for classification tasks
     """
 
     def __init__(self, mode, num_classes = 2):
@@ -173,10 +173,10 @@ class PCConvNetCls(nn.Module):
         """
         Defines the forward pass of the PitchContourAssessor module
         Args:
-                input: 	torch Variable (mini_batch_size x zero_pad_len), of input pitch contours
-                		mini_batch_size: 	size of the mini batch during one training iteration
-            			zero_pad_len: 		length to which each input sequence is zero-padded
-                		seq_lengths:		torch tensor (mini_batch_size x 1), length of each pitch contour
+                input:  torch Variable (mini_batch_size x zero_pad_len), of input pitch contours
+                        mini_batch_size:    size of the mini batch during one training iteration
+                        zero_pad_len:       length to which each input sequence is zero-padded
+                        seq_lengths:        torch tensor (mini_batch_size x 1), length of each pitch contour
         """
         # get mini batch size from input and reshape
         mini_batch_size, sig_size = input.size()

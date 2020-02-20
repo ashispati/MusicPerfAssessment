@@ -4,9 +4,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 import librosa
-
-#import matplotlib.pyplot as plt
-#import matplotlib.image as mpimg
+from scipy.linalg import toeplitz
+from scipy.signal import resample
 
 class AudioToSpectralRep:
     def __init__(self, rep_params):
@@ -30,10 +29,43 @@ class AudioToSpectralRep:
             x = librosa.logamplitude(x**2)
             #x = np.abs(librosa.stft(y,n_fft=320))
 
-        elif self.params['method'] == 'Mel Spectrogram':
+        elif self.params['method'] == 'MelSpectrogram':
             x = librosa.feature.melspectrogram(y, sr, n_fft=self.params['n_fft'], hop_length=self.params['hop_length'], n_mels=self.params['n_mels'])
-            x = librosa.logamplitude(x**2)
+            x = librosa.amplitude_to_db(x)
+            #x = librosa.logamplitude(x**2)
             #x = librosa.feature.melspectrogram(y,sr,n_fft=320,n_mels=160)
+            #
+            print(x.shape)
+            raise ValueError
+
+        elif self.params['method'] == 'ACF':
+            numZeros = self.params['hop_length'] - (len(y) % self.params['hop_length'])
+            ## Use center padding
+            y2 = np.insert(y, 0, np.zeros(numZeros // 2))
+            y2 = np.append(y2, np.zeros(numZeros - (numZeros // 2)))
+
+            ind = 0
+            blockSize = self.params['n_fft']
+            while ((ind + blockSize) <= len(y2)):
+                if ind == 0:
+                    x = librosa.autocorrelate(y2[ind : ind + blockSize], max_size=(self.params['hop_length']//2))
+                    x = np.expand_dims(x, 0)
+                else:
+                    x = np.vstack((x, librosa.autocorrelate(y2[ind : ind + blockSize], max_size=(self.params['hop_length']//2))))
+                ind += blockSize
+            #x = x.transpose()
+            x = resample(x, 96, t=None, axis=0)
+            #print(x.shape)
+
+
+        elif self.params['method'] == 'Cepstrum':
+            x = librosa.stft(y, n_fft=self.params['n_fft'], hop_length=self.params['hop_length'])
+            x = np.log(x)
+            for i in range(len(x)):
+                x[i] = np.absolute(np.fft.ifft(x[i]))
+            x = x.real.astype('float32')
+            x = resample(x, 96, t=None, axis=0)
+
 
         elif self.params['method'] == 'CQT':
             x = librosa.hybrid_cqt(y,sr, hop_length=self.params['hop_length'], n_bins=self.params['n_bins'], bins_per_octave=self.params['bins_per_octave'])

@@ -51,9 +51,9 @@ def train(model, criterion, optimizer, data, metric, mtype, ctype):
     # Initializations
     num_batches = len(data)
     loss_avg = 0
-	# iterate over batches for training
+    # iterate over batches for training
     for batch_idx in range(num_batches):
-		# clear gradients and loss
+        # clear gradients and loss
         model.zero_grad()
         loss = 0
         # extract pitch tensor and score for the batch
@@ -62,6 +62,7 @@ def train(model, criterion, optimizer, data, metric, mtype, ctype):
         # prepare data for input to model
         model_input = pitch_tensor.clone()
         model_target = score_tensor.clone()
+        model_target = torch.unsqueeze(model_target, 1)
         if ctype == 1:
             #model_input = model_input.long()
             model_target = model_target.long()
@@ -69,7 +70,7 @@ def train(model, criterion, optimizer, data, metric, mtype, ctype):
         if torch.cuda.is_available():
             model_input = model_input.cuda()
             model_target = model_target.cuda()
-	    # wrap all tensors in pytorch Variable
+        # wrap all tensors in pytorch Variable
         model_input = Variable(model_input)
         model_target = Variable(model_target)
         # compute forward pass for the network
@@ -83,7 +84,8 @@ def train(model, criterion, optimizer, data, metric, mtype, ctype):
         loss.backward()
         optimizer.step()
         # add loss
-        loss_avg += loss.data[0]
+        #loss_avg += loss.data[0]
+        loss_avg += loss.data
     loss_avg /= num_batches
     return loss_avg
 
@@ -118,7 +120,9 @@ def save(filename, perf_model):
         filename:   name of the file 
         model:      torch.nn model 
     """
-    save_filename = 'saved/' + filename + '_Reg.pt'
+    #save_filename = '/Users/michaelfarren/Desktop/models/' + filename + '_Reg.pt'
+    #save_filename = f'/content/gdrive/My Drive/Colab Notebooks/' + filename + '_Reg.pt'
+    save_filename = 'saved_runs/' + filename
     torch.save(perf_model.state_dict(), save_filename)
     print('Saved as %s' % save_filename)
 

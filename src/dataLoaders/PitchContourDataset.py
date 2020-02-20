@@ -16,6 +16,8 @@ class PitchContourDataset(Dataset):
             data_path:  full path to the file which contains the pitch contour data
         """
         self.perf_data = dill.load(open(data_path, 'rb'))
+        #print(self.perf_data[0])
+        print(len(self.perf_data))
         self.length = len(self.perf_data)
 
         # perform a few pre-processing steps
@@ -26,6 +28,7 @@ class PitchContourDataset(Dataset):
             # store the length of the pitch contours for use later
             self.perf_data[i]['pitch_contour'] = self.normalize_pitch_contour(
                 self.perf_data[i]['pitch_contour'])
+        print(self.perf_data[0])
 
     def __getitem__(self, idx):
         """

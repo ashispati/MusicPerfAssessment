@@ -70,6 +70,7 @@ def eval_model(model, criterion, data, metric, mtype, ctype, extra_outs = 0):
         # extract pitch tensor and score for the batch
         pitch_tensor = data[batch_idx]['pitch_tensor']
         score_tensor = data[batch_idx]['score_tensor'][:, metric]
+        score_tensor = torch.unsqueeze(score_tensor, 1)
         # prepare data for input to model
         model_input = pitch_tensor.clone()
         model_target = score_tensor.clone()
@@ -90,7 +91,8 @@ def eval_model(model, criterion, data, metric, mtype, ctype, extra_outs = 0):
         model_output = model(model_input)
         # compute loss
         loss = criterion(model_output, model_target)
-        loss_avg += loss.data[0]
+        #loss_avg += loss.data[0]
+        loss_avg += loss.data
         # concatenate target and pred for computing validation metrics
         if ctype == 0:
             pred = torch.cat((pred, model_output.data.view(-1)), 0) if pred.size else model_output.data.view(-1)

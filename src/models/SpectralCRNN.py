@@ -24,7 +24,7 @@ class SpectralCRNN(nn.Module):
             nn.MaxPool2d((3,5))
         )
         self.rnn = nn.GRU(320, 200, batch_first = True)
-        self.fc = nn.Linear(200, 11)
+        self.fc = nn.Linear(200, 1)
     def forward(self, x):
         out = self.conv(x)
         out = out.view(out.size(0), -1, out.size(3))
@@ -125,6 +125,7 @@ class SpectralCRNN_Reg_Dropout(nn.Module):
         if torch.cuda.is_available():
             self.hidden = self.hidden.cuda()
 
+ 
 class SpectralCRNN_Reg_big(nn.Module):
     def __init__(self):
         super(SpectralCRNN_Reg_big, self).__init__()

@@ -11,19 +11,20 @@ from dataLoaders.PitchContourDataset import PitchContourDataset
 
 class PitchContourDataloader(DataLoader):
     """
-	Dataloader class for pitch contour music performance assessment data
-	"""
+    Dataloader class for pitch contour music performance assessment data
+    """
 
     def __init__(self, dataset, num_data_pts, num_batches=1):
         """
         Initializes the class, defines the number of batches and other parameters
         Args:
-                dataset:  		object of the PitchContourDataset class, should be properly initialized
-                num_data_pts:	int, number of data points to be consideted while loading the data
-                num_batches:	int, number of batches to be considered
+                dataset:        object of the PitchContourDataset class, should be properly initialized
+                num_data_pts:   int, number of data points to be consideted while loading the data
+                num_batches:    int, number of batches to be considered
         """
         # check if input parameters are accurate
         np.random.seed(1)
+        length = len(dataset)
         assert num_data_pts <= dataset.__len__()
         assert num_batches <= num_data_pts
         self.dataset = dataset
@@ -31,7 +32,6 @@ class PitchContourDataloader(DataLoader):
         self.num_batches = num_batches
         self.indices = np.arange(self.num_data_pts)
         np.random.shuffle(self.indices)
-        print(self.indices)
         self.mini_batch_size = int(np.floor(self.num_data_pts / self.num_batches))
         
     def get_sorted_data(self):
@@ -84,7 +84,6 @@ class PitchContourDataloader(DataLoader):
             data['score_tensor'] = score_tensor
             data['class_tensor'] = class_score_tensor
             batched_data[batch_num] = data
-        print(count)
         return batched_data
 
     def create_split_data(self, chunk_len, hop):
@@ -92,11 +91,11 @@ class PitchContourDataloader(DataLoader):
         Returns batched data which is split into chunks
         Args:
             chunk_len:  legnth of the chunk in samples
-            hop:	hop length in samples
+            hop:    hop length in samples
         """
         random.seed(0)
         indices = self.indices
-        print(indices)
+        #print(indices)
         #np.random.shuffle(indices)
         num_training_songs = int(0.8 * self.num_data_pts)
         num_validation_songs = int(0.1 * self.num_data_pts)
@@ -119,6 +118,7 @@ class PitchContourDataloader(DataLoader):
                 train_split.append(d)
                 count += hop
         shuffle(train_split)
+
         num_data_pts = len(train_split)
         batched_data = [None] * self.num_batches
         mini_batch_size = int(np.floor(num_data_pts / self.num_batches))
