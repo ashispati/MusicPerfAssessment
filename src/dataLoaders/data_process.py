@@ -9,7 +9,7 @@ from src.dataLoaders.DataUtils import DataUtils
 
 
 # Initialize input params, specify the band, instrument, segment information
-BAND = 'middle'
+BAND = 'symphonic'
 SEGMENT = 2
 YEAR = ['2013', '2014', '2015']
 
