@@ -125,8 +125,7 @@ def compute_saliency_maps(X, y, model):
     
     # compute forward pass and class scores
     pred_scores = model.forward(X_var)
-    print(pred_scores)
-
+    #print(pred_scores)
     # compute gradient wrt input
     pred_scores.sum().backward()
     saliency = X_var.grad

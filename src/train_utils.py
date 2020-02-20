@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import eval_utils
 
+
 def augment_data(data):
     """
     Augments the data using pitch shifting
@@ -22,7 +23,7 @@ def augment_data(data):
     # create augmented data
     for batch_idx in range(num_batches):
         mini_batch_size, seq_len = data[batch_idx]['pitch_tensor'].size()
-        pitch_shift = ((torch.rand(mini_batch_size, 1) * 4) - 2) / 127.0
+        pitch_shift = ((torch.rand(mini_batch_size, 1) * 4) - 2) / 72.0 # since we normalize between 36 to 108 MIDI Note
         pitch_shift = pitch_shift.expand(mini_batch_size, seq_len)
         pitch_tensor = data[batch_idx]['pitch_tensor'].clone()
         pitch_tensor[pitch_tensor != 0] = pitch_tensor[pitch_tensor != 0] + pitch_shift[pitch_tensor != 0]
@@ -33,6 +34,7 @@ def augment_data(data):
     # combine with orignal data
     aug_data = data + aug_data
     return aug_data
+
 
 def train(model, criterion, optimizer, data, metric, mtype, ctype):
     """
@@ -111,6 +113,7 @@ def train_and_validate(model, criterion, optimizer, train_data, val_data, metric
     # return values
     return train_loss_avg, train_r_sq, train_accu, train_accu2, val_loss_avg, val_r_sq, val_accu, val_accu2
 
+
 def save(filename, perf_model):
     """
     Saves the saved model
@@ -122,6 +125,7 @@ def save(filename, perf_model):
     torch.save(perf_model.state_dict(), save_filename)
     print('Saved as %s' % save_filename)
 
+
 def time_since(since):
     """
     Returns the time elapsed between now and 'since'
@@ -131,6 +135,7 @@ def time_since(since):
     m = math.floor(s / 60)
     s -= m * 60
     return '%dm %ds' % (m, s)
+
 
 def adjust_learning_rate(optimizer, epoch, adjust_every):
     """

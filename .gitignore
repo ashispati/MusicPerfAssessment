@@ -60,3 +60,6 @@ src/model_*
 .vscode
 ehthumbs.db
 Thumbs.db
+
+# VSCode
+/*.idea

@@ -40,7 +40,7 @@ NUM_BATCHES = 10
 BAND = 'middle'
 SEGMENT = '2'
 METRIC = 0 # 0: Musicality, 1: Note Accuracy, 2: Rhythmic Accuracy, 3: Tone Quality
-MTYPE = 'lstm'
+MTYPE = 'conv'
 CTYPE = 0
 # initialize dataset, dataloader and created batched data
 file_name = BAND + '_' + str(SEGMENT) + '_data'
@@ -57,7 +57,7 @@ if BAND == 'mast':
     CTYPE = 1
 else:
     dataset = PitchContourDataset(data_path)
-    dataloader = PitchContourDataloader(dataset, NUM_DATA_POINTS, NUM_BATCHES)
+    dataloader = PitchContourDataloader(dataset, NUM_DATA_POINTS, NUM_BATCHES) 
 tr1, v1, vef, te1, tef = dataloader.create_split_data(1000, 500)
 tr2, v2, _, te2, _ = dataloader.create_split_data(1500, 500)
 tr3, v3, _, te3, _ = dataloader.create_split_data(2000, 1000)
@@ -98,6 +98,10 @@ MOMENTUM = 0.9
 perf_optimizer = optim.SGD(perf_model.parameters(), lr= LR_RATE, momentum=MOMENTUM, weight_decay=W_DECAY)
 #perf_optimizer = optim.Adam(perf_model.parameters(), lr = LR_RATE, weight_decay = W_DECAY)
 print(perf_model)
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+print(count_parameters(perf_model))
 
 # declare save file name
 file_info = str(NUM_DATA_POINTS) + '_' + str(NUM_EPOCHS) + '_' + BAND + '_' + str(METRIC) + '_' + str(RUN) + '_' + MTYPE        
