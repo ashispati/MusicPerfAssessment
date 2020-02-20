@@ -131,12 +131,16 @@ class DataUtils(object):
             student_ids = self.scan_student_ids(year)
         for student_id in student_ids:
             segment_file_path = os.path.join(annotations_folder, str(student_id), str(student_id) + '_segment.txt')
-            file_info = [line.rstrip('\n')
-                         for line in open(segment_file_path, 'r')]
-            segment_info = file_info[segment]
-            to_floats = list(map(float, segment_info.split('\t')))
-            # convert to tuple and append
-            segment_data.append((to_floats[0], to_floats[0] + to_floats[1]))
+            if os.path.exists(segment_file_path):
+                file_info = [
+                    line.rstrip('\n') for line in open(segment_file_path, 'r')
+                ]
+                segment_info = file_info[segment]
+                to_floats = list(map(float, segment_info.split('\t')))
+                # convert to tuple and append
+                segment_data.append((to_floats[0], to_floats[0] + to_floats[1]))
+            else:
+                segment_data.append(None)
         return segment_data
 
     def get_pitch_contours_segment(self, year, segment_info, student_ids=None):
@@ -155,24 +159,30 @@ class DataUtils(object):
         idx = 0
         for student_id in student_ids:
             pyin_file_path = os.path.join(data_folder, str(student_id), str(student_id) + '_pyin_pitchtrack.txt')
-            lines = [line.rstrip('\n') for line in open(pyin_file_path, 'r')]
-            pitch_contour = []
-            start_time, end_time = segment_info[idx]
-            idx = idx + 1
-            for x in lines:
-                to_floats = list(map(float, x.split(',')))
-                timestamp = to_floats[0]
+            if os.path.exists(pyin_file_path):
+                lines = [line.rstrip('\n') for line in open(pyin_file_path, 'r')]
+                pitch_contour = []
+                start_time, end_time = segment_info[idx]
+                if segment_info[idx] is not None:
+                    idx = idx + 1
+                    for x in lines:
+                        to_floats = list(map(float, x.split(',')))
+                        timestamp = to_floats[0]
 
-                if timestamp < start_time:
-                    continue
+                        if timestamp < start_time:
+                            continue
+                        else:
+                            if timestamp > end_time:
+                                break
+                            else:
+                                pitch = to_floats[1]
+                                pitch_contour.append(to_floats[1])
+                    pitch_contour = np.asarray(pitch_contour)
+                    pitch_contour_data.append(pitch_contour)
                 else:
-                    if timestamp > end_time:
-                        break
-                    else:
-                        pitch = to_floats[1]
-                        pitch_contour.append(to_floats[1])
-            pitch_contour = np.asarray(pitch_contour)
-            pitch_contour_data.append(pitch_contour)
+                    pitch_contour_data.append(None)
+            else:
+                pitch_contour_data.append(None)
 
         return pitch_contour_data
 
@@ -188,10 +198,13 @@ class DataUtils(object):
             student_ids = self.scan_student_ids(year)
         audio_file_paths = []
         for student_id in student_ids:
-            audio_file_path = data_folder + \
-                str(student_id) + '/' + str(student_id) + '.mp3'
-            audio_file_paths.append(audio_file_path)
-
+            audio_file_path = os.path.join(
+                data_folder, str(student_id), str(student_id) + '.mp3'
+            )
+            if os.path.exists(audio_file_path):
+                audio_file_paths.append(audio_file_path)
+            else:
+                audio_file_paths.append(None)
         return audio_file_paths
 
     def get_perf_rating_segment(self, year, segment, student_ids=None):
@@ -219,10 +232,7 @@ class DataUtils(object):
                 (assessments_data['year'] == int(year))
             ]
             # student_id and year combination must be unique
-            if assessment.shape[0] != 1:
-                print(student_id, year)
-                continue
-            # assert assessment.shape[0] == 1
+            assert assessment.shape[0] == 1
             ratings = []
             for criteria in criteria_list:
                 assessment_str = seg + '_' + criteria
@@ -253,10 +263,14 @@ class DataUtils(object):
             assessment_data['student_id'] = student_ids[student_idx]
             assessment_data['segment'] = segment
             if not include_audio:
+                if pitch_contour_data[student_idx] is None:
+                    continue
                 assessment_data['pitch_contour'] = pitch_contour_data[student_idx]
             else:
                 import librosa
                 audio_file_paths = self.get_audio_file_path(year, student_ids)
+                if segment_info[idx] is None:
+                    continue
                 y, sr = librosa.load(audio_file_paths[student_idx], offset=segment_info[idx][0], duration=segment_info[idx][1] - segment_info[idx][0])
                 assessment_data['audio'] = (y,sr)
             assessment_data['ratings'] = ground_truth[student_idx]
