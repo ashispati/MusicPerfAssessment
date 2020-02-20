@@ -24,17 +24,17 @@ req_audio = False
 INSTRUMENT = 'Alto Saxophone'
 utils = DataUtils(PATH_FBA_ANNO, PATH_FBA_AUDIO, BAND, INSTRUMENT)
 for year in YEAR:
-    perf_assessment_data += utils.create_data(year, SEGMENT, audio=req_audio)
+    perf_assessment_data += utils.create_data(year, SEGMENT, include_audio=req_audio)
 
 INSTRUMENT = 'Bb Clarinet'
 utils = DataUtils(PATH_FBA_ANNO, PATH_FBA_AUDIO, BAND, INSTRUMENT)
 for year in YEAR:
-    perf_assessment_data += utils.create_data(year, SEGMENT, audio=req_audio)
+    perf_assessment_data += utils.create_data(year, SEGMENT, include_audio=req_audio)
 
 INSTRUMENT = 'Flute'
 utils = DataUtils(PATH_FBA_ANNO, PATH_FBA_AUDIO, BAND, INSTRUMENT)
 for year in YEAR:
-    perf_assessment_data += utils.create_data(year, SEGMENT, audio=req_audio)
+    perf_assessment_data += utils.create_data(year, SEGMENT, include_audio=req_audio)
 
 print(len(perf_assessment_data))
 
