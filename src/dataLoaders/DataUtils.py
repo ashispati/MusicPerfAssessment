@@ -9,6 +9,28 @@ bad_ids = {}
 bad_ids['middle'] = [29429, 32951, 42996, 43261, 44627, 56948, 39299, 39421, 41333, 42462, 43811, 44319, 61218, 29266, 33163]
 bad_ids['symphonic'] = [33026, 33476, 35301, 41602, 52950, 53083, 46038, 33368, 42341, 51598, 56778, 56925, 30430, 55642, 60935]
 
+SEGMENT_CRITERIA_DICT = {
+    1: (
+        'lyrical_etude',
+        [
+            'musicality_tempo_style',
+            'note_accuracy',
+            'rhythmic_accuracy',
+            'tone_quality'
+        ]
+    ),
+    2: (
+        'technical_etude',
+[
+            'musicality_tempo_style',
+            'note_accuracy',
+            'rhythmic_accuracy',
+            'tone_quality'
+        ]
+    )
+    # TODO: add others
+}
+
 
 class DataUtils(object):
     """
@@ -180,21 +202,32 @@ class DataUtils(object):
             segment:		string, which segment
             student_ids:	list, containing the student ids., if empty we compute it within this function
         """
-
-        annotations_folder = self.get_anno_folder_path(year)
-        perf_ratings = []
+        # get student_ids if needed
         if student_ids is None:
             student_ids = self.scan_student_ids(year)
 
+        # read assessment csv file
+        path_to_assessments_file = os.path.join(self.path_to_annotations, self.assessments_file)
+        assessments_data = pd.read_csv(path_to_assessments_file)
+
+        # extract assessment ratings
+        perf_ratings = []
+        seg, criteria_list = SEGMENT_CRITERIA_DICT[segment]
         for student_id in student_ids:
-            ratings_file_path = os.path.join(annotations_folder, str(student_id), str(student_id) + '_assessments.txt')
-            file_info = [line.rstrip('\n')
-                         for line in open(ratings_file_path, 'r')]
-            segment_ratings = file_info[segment]
-            to_floats = list(map(float, segment_ratings.split('\t')))
-            # convert to tuple and append
-            perf_ratings.append(
-                (to_floats[2], to_floats[3], to_floats[4], to_floats[5]))
+            assessment = assessments_data.loc[
+                (assessments_data['student_id'] == int(student_id)) &
+                (assessments_data['year'] == int(year))
+            ]
+            # student_id and year combination must be unique
+            if assessment.shape[0] != 1:
+                print(student_id, year)
+                continue
+            # assert assessment.shape[0] == 1
+            ratings = []
+            for criteria in criteria_list:
+                assessment_str = seg + '_' + criteria
+                ratings.append(assessment[assessment_str].values[0])
+            perf_ratings.append(tuple(ratings))
 
         return perf_ratings
     
