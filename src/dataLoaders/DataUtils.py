@@ -2,6 +2,7 @@ import os
 import sys
 import numpy as np
 import pandas as pd
+import librosa
 
 # define bad students ids 
 # for which recording is bad or segment annotation doesn't exist
@@ -55,6 +56,8 @@ class DataUtils(object):
         self.instrument = instrument
         self.bad_ids = bad_ids[band]
         self.assessments_file = 'normalized_student_scores.csv'
+        self.path_to_pyin_n3 = os.path.realpath('pYin/pyin.n3')
+        self.path_to_sonic_annotator = os.path.realpath('pYin/exec/')
 
     def get_excel_file_path(self, year):
         """
@@ -156,35 +159,81 @@ class DataUtils(object):
         if student_ids is None:
             student_ids = self.scan_student_ids(year)
         pitch_contour_data = []
-        idx = 0
-        for student_id in student_ids:
-            pyin_file_path = os.path.join(data_folder, str(student_id), str(student_id) + '_pyin_pitchtrack.txt')
-            if os.path.exists(pyin_file_path):
-                lines = [line.rstrip('\n') for line in open(pyin_file_path, 'r')]
-                pitch_contour = []
-                start_time, end_time = segment_info[idx]
-                if segment_info[idx] is not None:
-                    idx = idx + 1
-                    for x in lines:
-                        to_floats = list(map(float, x.split(',')))
-                        timestamp = to_floats[0]
 
-                        if timestamp < start_time:
-                            continue
+        for idx, student_id in enumerate(student_ids):
+            pyin_file_path = os.path.join(data_folder, str(student_id), str(student_id) + '_pyin_pitchtrack.txt')
+            if not os.path.exists(pyin_file_path):
+                self.compute_and_save_pitch_contour(year, student_id, save_path=pyin_file_path)
+            lines = [line.rstrip('\n') for line in open(pyin_file_path, 'r')]
+            pitch_contour = []
+            start_time, end_time = segment_info[idx]
+            if segment_info[idx] is not None:
+                for x in lines:
+                    to_floats = list(map(float, x.split(',')))
+                    timestamp = to_floats[0]
+
+                    if timestamp < start_time:
+                        continue
+                    else:
+                        if timestamp > end_time:
+                            break
                         else:
-                            if timestamp > end_time:
-                                break
-                            else:
-                                pitch = to_floats[1]
-                                pitch_contour.append(to_floats[1])
-                    pitch_contour = np.asarray(pitch_contour)
-                    pitch_contour_data.append(pitch_contour)
-                else:
-                    pitch_contour_data.append(None)
+                            pitch = to_floats[1]
+                            pitch_contour.append(to_floats[1])
+                pitch_contour = np.asarray(pitch_contour)
+                pitch_contour_data.append(pitch_contour)
             else:
                 pitch_contour_data.append(None)
 
         return pitch_contour_data
+
+    def _create_sonic_annotator_command(self, path_to_audio_file):
+        output_dir = os.path.dirname(self.path_to_pyin_n3)
+        command_list = [
+            os.path.join(self.path_to_sonic_annotator, 'sonic-annotator'),
+            '-t',
+            self.path_to_pyin_n3,
+            path_to_audio_file,
+            '-w',
+            'csv',
+            '--csv-force',
+            '--csv-basedir',
+            output_dir + '/'
+        ]
+        command = " ".join(command_list)
+        path_to_output_file = os.path.join(
+            output_dir,
+            os.path.splitext(os.path.basename(path_to_audio_file))[0] + '_vamp_pyin_pyin_smoothedpitchtrack.csv'
+        )
+        return command, path_to_output_file
+
+    def compute_and_save_pitch_contour(self, year, student_id, save_path):
+        # run sonic annotator to compute pYin contour as a .csv file
+        path_to_audio_file = self.get_audio_file_path(year, [student_id])[0]
+        command, path_to_temp_file = self._create_sonic_annotator_command(path_to_audio_file)
+        os.system(command)
+        pyin_data = pd.DataFrame.to_numpy(pd.read_csv(path_to_temp_file))
+        pyin_f0 = pyin_data[:, 1]
+        pyin_ts = np.round(pyin_data[:, 0], 3)
+
+        # generate timestamps and readjust pitch contour to include unvoiced blocks also
+        y, sr = librosa.load(path_to_audio_file, sr=44100, mono=True)
+        hop = 256
+        num_blocks = np.ceil(y.shape[0] / hop)
+        time_stamps = np.round(np.arange(0, num_blocks) * hop / sr, 3)
+        pyin_f0_rev = np.zeros_like(time_stamps)
+        _, _, c = np.intersect1d(pyin_ts, time_stamps, return_indices=True)
+        pyin_f0_rev[c] = pyin_f0
+
+        # save pitch contour
+        output_lines = [str(time_stamps[i]) + ',' + str(pyin_f0_rev[i]) + '\n' for i in range(time_stamps.size)]
+        with open(save_path, 'w') as outfile:
+            outfile.writelines(output_lines)
+
+        # delete temp file
+        os.remove(path_to_temp_file)
+
+        return pyin_f0
 
     def get_audio_file_path(self, year, student_ids=None):
         """
@@ -254,7 +303,6 @@ class DataUtils(object):
         segment_info = self.get_segment_info(year, segment, student_ids)
         pitch_contour_data = self.get_pitch_contours_segment(year, segment_info, student_ids)
         ground_truth = self.get_perf_rating_segment(year, segment, student_ids)
-        idx = 0
         for student_idx in range(len(student_ids)):
             assessment_data = {}
             assessment_data['year'] = year
@@ -267,14 +315,12 @@ class DataUtils(object):
                     continue
                 assessment_data['pitch_contour'] = pitch_contour_data[student_idx]
             else:
-                import librosa
                 audio_file_paths = self.get_audio_file_path(year, student_ids)
-                if segment_info[idx] is None:
+                if segment_info[student_idx] is None:
                     continue
-                y, sr = librosa.load(audio_file_paths[student_idx], offset=segment_info[idx][0], duration=segment_info[idx][1] - segment_info[idx][0])
-                assessment_data['audio'] = (y,sr)
+                y, sr = librosa.load(audio_file_paths[student_idx], offset=segment_info[student_idx][0], duration=segment_info[idx][1] - segment_info[idx][0])
+                assessment_data['audio'] = (y, sr)
             assessment_data['ratings'] = ground_truth[student_idx]
             assessment_data['class_ratings'] = [round(x * 10) for x in ground_truth[student_idx]]
             perf_assessment_data.append(assessment_data)
-            idx += 1
         return perf_assessment_data
