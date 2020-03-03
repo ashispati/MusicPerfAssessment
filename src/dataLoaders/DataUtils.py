@@ -41,10 +41,10 @@ class DataUtils(object):
         """
         Initialized the data utils class
         Arg:
-            path_to_annotations:	string, full path to the folder containing the FBA annotations
+            path_to_annotations:    string, full path to the folder containing the FBA annotations
             path_to_audio:          string, full path to the folder containing the FBA audio
-            band:					string, which band type
-            instrument:				string, which instrument
+            band:                   string, which band type
+            instrument:             string, which instrument
         """
         self.path_to_annotations = path_to_annotations
         self.path_to_audio = path_to_audio
@@ -60,7 +60,7 @@ class DataUtils(object):
         """
         Returns the excel file name containing the student performance details
         Arg:
-            year:	string, which year
+            year:   string, which year
         """
         folder_name = 'FBA' + year
         file_name = 'excel' + self.band + '.xlsx'
@@ -84,7 +84,7 @@ class DataUtils(object):
         """
         Returns the full path to the root folder containing all the FBA segment files and assessments
         Arg:
-            year:	string, which year
+            year:   string, which year
         """
         folder_name = 'FBA' + year
         path_to_anno_folder = os.path.join(self.path_to_annotations, folder_name, self.band, 'assessments')
@@ -94,7 +94,7 @@ class DataUtils(object):
         """
         Returns the student ids for the provide inputs as a list
         Args:
-            year:	string, which year
+            year:   string, which year
         """
         # get the excel file path
         file_path = self.get_excel_file_path(year)
@@ -121,9 +121,9 @@ class DataUtils(object):
         """
         Returns the segment info for the provide inputs as a list of tuples (start_time, end_time)
         Args:
-            year:			string, which year
-            segment:		string, which segment
-            student_ids:	list, containing the student ids., if empty we compute it within this function
+            year:           string, which year
+            segment:        string, which segment
+            student_ids:    list, containing the student ids., if empty we compute it within this function
         """
         annotations_folder = self.get_anno_folder_path(year)
         segment_data = []
@@ -136,11 +136,15 @@ class DataUtils(object):
                     line.rstrip('\n') for line in open(segment_file_path, 'r')
                 ]
                 segment_info = file_info[segment]
-                to_floats = list(map(float, segment_info.split('\t')))
+                try:
+                    to_floats = list(map(float, segment_info.split('\t')))
+                except:
+                    to_floats = list(map(float, segment_info.split(' ')))
                 # convert to tuple and append
                 segment_data.append((to_floats[0], to_floats[0] + to_floats[1]))
             else:
                 segment_data.append(None)
+                #print(segment_file_path)
         return segment_data
 
     def get_pitch_contours_segment(self, year, segment_info, student_ids=None):
@@ -148,9 +152,9 @@ class DataUtils(object):
         Returns the pitch contours for the provide inputs as a list of np arrays
                 assumes pyin pitch contours have already been computed and stored as text files
         Args:
-            year:			string, which year
-            segment_info:		string, which segment
-            student_ids:	list, containing the student ids., if empty we compute it within this function
+            year:           string, which year
+            segment_info:       string, which segment
+            student_ids:    list, containing the student ids., if empty we compute it within this function
         """
         data_folder = self.get_anno_folder_path(year)
         if student_ids is None:
@@ -201,6 +205,7 @@ class DataUtils(object):
             audio_file_path = os.path.join(
                 data_folder, str(student_id), str(student_id) + '.mp3'
             )
+            #print(audio_file_path)
             if os.path.exists(audio_file_path):
                 audio_file_paths.append(audio_file_path)
             else:
@@ -211,9 +216,9 @@ class DataUtils(object):
         """
         Returns the performane ratings given by human judges for the input segment as a list of tuples
         Args:
-            year:			string, which year
-            segment:		string, which segment
-            student_ids:	list, containing the student ids., if empty we compute it within this function
+            year:           string, which year
+            segment:        string, which segment
+            student_ids:    list, containing the student ids., if empty we compute it within this function
         """
         # get student_ids if needed
         if student_ids is None:
@@ -254,7 +259,8 @@ class DataUtils(object):
         segment_info = self.get_segment_info(year, segment, student_ids)
         pitch_contour_data = self.get_pitch_contours_segment(year, segment_info, student_ids)
         ground_truth = self.get_perf_rating_segment(year, segment, student_ids)
-        idx = 0
+        counter_audio = 0
+        counter_seg = 0
         for student_idx in range(len(student_ids)):
             assessment_data = {}
             assessment_data['year'] = year
@@ -269,12 +275,19 @@ class DataUtils(object):
             else:
                 import librosa
                 audio_file_paths = self.get_audio_file_path(year, student_ids)
-                if segment_info[idx] is None:
+                if segment_info[student_idx] is None:
+                    counter_seg += 1
+                    #print(f'Missing Seg Info for: {self.band}, {year}, {self.instrument}, {student_ids[student_idx]}')
                     continue
-                y, sr = librosa.load(audio_file_paths[student_idx], offset=segment_info[idx][0], duration=segment_info[idx][1] - segment_info[idx][0])
+                elif audio_file_paths[student_idx] is None:
+                    counter_audio += 1
+                    #print(f'Missing Audio file for: {self.band}, {self.year}, {self.instrument}, {student_idx}')
+                    continue
+                #print(student_idx)
+                y, sr = librosa.load(audio_file_paths[student_idx], offset=segment_info[student_idx][0], duration=segment_info[student_idx][1] - segment_info[student_idx][0])
                 assessment_data['audio'] = (y,sr)
             assessment_data['ratings'] = ground_truth[student_idx]
             assessment_data['class_ratings'] = [round(x * 10) for x in ground_truth[student_idx]]
             perf_assessment_data.append(assessment_data)
-            idx += 1
+#        print(counter_seg, counter_audio)
         return perf_assessment_data
