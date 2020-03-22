@@ -212,7 +212,7 @@ class DataUtils(object):
         )
         return command, path_to_output_file
 
-    def compute_and_save_pitch_contour(self, year, student_id, save_path):
+    def run_sonic_annotator(self, year, student_id, save_path):
         # run sonic annotator to compute pYin contour as a .csv file
         path_to_audio_file = self.get_audio_file_path(year, [student_id])[0]
         command, path_to_temp_file = self._create_sonic_annotator_command(path_to_audio_file)
@@ -221,12 +221,20 @@ class DataUtils(object):
         # Sonic annotator sometimes does not write files correctly
         # If not then we try again !!!
         if a != 0:
-            self.compute_and_save_pitch_contour(self, year, student_id, save_path)
+            self.run_sonic_annotator(year, student_id, save_path)
+        return path_to_temp_file
+
+    def compute_and_save_pitch_contour(self, year, student_id, save_path):
+        # run sonic annotator to compute pYin contour as a .csv file
+        path_to_temp_file = self.run_sonic_annotator(year, student_id, save_path)
+
+        # read temp file created by sonic annotator
         pyin_data = pd.DataFrame.to_numpy(pd.read_csv(path_to_temp_file))
         pyin_f0 = pyin_data[:, 1]
         pyin_ts = np.round(pyin_data[:, 0], 3)
 
         # generate timestamps and readjust pitch contour to include unvoiced blocks also
+        path_to_audio_file = self.get_audio_file_path(year, [student_id])[0]
         y, sr = librosa.load(path_to_audio_file, sr=44100, mono=True)
         window_size = 1024
         hop = 256
