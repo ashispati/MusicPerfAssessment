@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 import numpy as np
 import pandas as pd
@@ -166,7 +167,7 @@ class DataUtils(object):
 
         for idx, student_id in enumerate(student_ids):
             pyin_file_path = os.path.join(data_folder, str(student_id), str(student_id) + '_pyin_pitchtrack.txt')
-            if not os.path.exists(pyin_file_path):
+            if not os.path.exists(pyin_file_path) and segment_info[idx] is not None:
                 self.compute_and_save_pitch_contour(year, student_id, save_path=pyin_file_path)
             lines = [line.rstrip('\n') for line in open(pyin_file_path, 'r')]
             pitch_contour = []
@@ -215,19 +216,25 @@ class DataUtils(object):
         # run sonic annotator to compute pYin contour as a .csv file
         path_to_audio_file = self.get_audio_file_path(year, [student_id])[0]
         command, path_to_temp_file = self._create_sonic_annotator_command(path_to_audio_file)
-        os.system(command)
+        a = os.system(command)
+        # Need to check if the process complerted correctly
+        # Sonic annotator sometimes does not write files correctly
+        # If not then we try again !!!
+        if a != 0:
+            self.compute_and_save_pitch_contour(self, year, student_id, save_path)
         pyin_data = pd.DataFrame.to_numpy(pd.read_csv(path_to_temp_file))
         pyin_f0 = pyin_data[:, 1]
         pyin_ts = np.round(pyin_data[:, 0], 3)
 
         # generate timestamps and readjust pitch contour to include unvoiced blocks also
         y, sr = librosa.load(path_to_audio_file, sr=44100, mono=True)
+        window_size = 1024
         hop = 256
         num_blocks = np.ceil(y.shape[0] / hop)
         time_stamps = np.round(np.arange(0, num_blocks) * hop / sr, 3)
         pyin_f0_rev = np.zeros_like(time_stamps)
-        _, _, c = np.intersect1d(pyin_ts, time_stamps, return_indices=True)
-        pyin_f0_rev[c] = pyin_f0
+        a, _, c = np.intersect1d(pyin_ts, time_stamps, return_indices=True)
+        pyin_f0_rev[c] = pyin_f0[: min(c.size, pyin_f0.size)]
 
         # save pitch contour
         output_lines = [str(time_stamps[i]) + ',' + str(pyin_f0_rev[i]) + '\n' for i in range(time_stamps.size)]
